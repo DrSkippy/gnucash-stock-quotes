@@ -1,0 +1,18 @@
+[tool.poetry]
+name = "gnucash_stockprices"
+version = "0.1.0"
+description = ""
+authors = ["DrSkippy <scott.hendrickson@getnotion.com>"]
+
+[tool.poetry.dependencies]
+python = "3.7.5"
+pandas = "^0.25.3"
+matplotlib = "^3.1"
+numpy = "^1.17"
+requests = "^2.22"
+
+[tool.poetry.dev-dependencies]
+
+[build-system]
+requires = ["poetry>=0.12"]
+build-backend = "poetry.masonry.api"
