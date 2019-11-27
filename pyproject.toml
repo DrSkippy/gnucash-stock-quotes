@@ -1,5 +1,5 @@
 [tool.poetry]
-name = "gnucash_stockprices"
+name = "gnucash_stock-quotes"
 version = "0.1.0"
 description = ""
 authors = ["DrSkippy <scott.hendrickson@getnotion.com>"]
