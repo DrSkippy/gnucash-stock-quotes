@@ -7,12 +7,12 @@
 poetry install
 ```
 
-### Running
+### Run
 
 ```
 poetry run python bin/fetch.py 
 ```
-Or to process quotes already fetched from  Alphavantage:
+Or, to process quotes already fetched from  Alphavantage:
 ```
 poetry run python bin/from_disk.py
 ```
