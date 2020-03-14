@@ -18,19 +18,24 @@ poetry run python bin/from_disk.py
 ```
 ### tickers.json
 
+The keys in the tickers dictionary are Gnucash "namespaces".
+
 ```{
 	"configuration" : 
 	{
 		"key" : "<YOUR KEY>",
 		"url_base" : "https://www.alphavantage.co/query?function=TIME_SERIES_WEEKLY&symbol={}&apikey={}"
 	},
-	"tickers" :
-	["AKAM",
-	"FBRSX",
-	"FDVLX",
-    ...
-	"VFINX",
-	"VMMXX",
-	"VTTVX"]
+	"tickers": {
+		"AMEX": [
+			"FBRSX",
+			"TRPDX",
+...
+		"NASDAQ": [
+			"AKAM",
+			"FMCSX",
+...
+		]
+	}
 }
 ```

@@ -18,7 +18,16 @@ class TickerQuotes:
             config = json.load(fin)
         self.key = config["configuration"]["key"]
         self.url_base = config["configuration"]["url_base"]
-        self.tickers = config["tickers"]
+        self.tickers, self.ticker_namespaces = self._ticker_list(config["tickers"])
+
+    def _ticker_list(self, d):
+        tic_res = []
+        tic_map = {}
+        for k, v in d.items():
+            for i in v:
+                tic_res.append(i)
+                tic_map[i] = k
+        return tic_res, tic_map
 
     def _process_record(self, t_dict):
         symbol = t_dict["Meta Data"]["2. Symbol"]
@@ -31,6 +40,7 @@ class TickerQuotes:
         df.volume = df.volume.astype(float).fillna(0.0)
         df["symbol"] = symbol
         df["currency"] = "USD"
+        df["namespace"] = self.ticker_namespaces[symbol]
         logging.info(df.head())
         return df, symbol
 
@@ -77,7 +87,7 @@ class TickerQuotes:
         for q in results:
             df, symbol = self._process_record(q)
             df = df.sort_index()
-            dfs.append(df[["symbol", "close", "currency"]][(df.index > '2016-01-01')])
+            dfs.append(df[["namespace", "symbol", "close", "currency"]][(df.index > '2016-01-01')])
         return dfs
 
     def save_gnucash_quotes(self, dfs, filename="./data/prices.csv"):
