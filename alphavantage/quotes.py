@@ -17,22 +17,26 @@ class TickerQuotes:
         with open("./tickers.json", "r") as fin:
             config = json.load(fin)
         self.key = config["configuration"]["key"]
+        self.url_keys = config["configuration"]["url_base"].keys()
+        url_keys_test = config["tickers"].keys()
+        assert(self.url_keys == url_keys_test)
         self.url_base = config["configuration"]["url_base"]
-        self.tickers, self.ticker_namespaces = self._ticker_list(config["tickers"])
-
-    def _ticker_list(self, d):
-        tic_res = []
-        tic_map = {}
-        for k, v in d.items():
-            for i in v:
-                tic_res.append(i)
-                tic_map[i] = k
-        return tic_res, tic_map
+        self.tickers = config["tickers"]
 
     def _process_record(self, t_dict):
-        symbol = t_dict["Meta Data"]["2. Symbol"]
-        df = pd.DataFrame().from_dict(t_dict["Weekly Time Series"], orient="index")
-        df.columns = ["open","high", "low", "close", "volume"]
+        try:
+            symbol = t_dict["Meta Data"]["2. Symbol"]
+            df = pd.DataFrame().from_dict(t_dict["Weekly Time Series"], orient="index")
+            df.columns = ["open","high", "low", "close", "volume"]
+        except KeyError:
+            symbol = t_dict["Meta Data"]["2. Digital Currency Code"]
+            df = pd.DataFrame().from_dict(t_dict["Time Series (Digital Currency Weekly)"], orient="index")
+            df.columns = ["open_cny", "open",
+                          "high_cny", "high",
+                          "low_cny", "low",
+                          "close_cny", "close",
+                          "volume", "market_cap"]
+
         df.open = df.open.astype(float).fillna(0.0)
         df.high = df.high.astype(float).fillna(0.0)
         df.low = df.low.astype(float).fillna(0.0)
@@ -40,25 +44,29 @@ class TickerQuotes:
         df.volume = df.volume.astype(float).fillna(0.0)
         df["symbol"] = symbol
         df["currency"] = "USD"
-        df["namespace"] = self.ticker_namespaces[symbol]
+        #df["namespace"] = self.ticker_namespaces[symbol]
+        df["namespace"] = "NASDAQ"
         logging.info(df.head())
         return df, symbol
 
     def fetch_quotes(self):
         results = []
-        for t in self.tickers:
-            logging.info('getting ticker = {}'.format(t))
-            url = self.url_base.format(t, self.key)
-            logging.info('url = {}'.format(url))
-            res = requests.get(url)
-            logging.info('resp = {}'.format(res))
-            res_json = res.json()
-            if "Weekly Time Series" in res_json:
-                results.append(res_json)
-            else:
-                logging.error("{} failed with message {}".format(t, res_json))
-            logging.info("waiting 11 sec...")
-            time.sleep(11)
+        for key in self.url_keys:
+            for t in self.tickers[key]:
+                logging.info('getting ticker = {}'.format(t))
+                url = self.url_base[key].format(t, self.key)
+                logging.info('url = {}'.format(url))
+                res = requests.get(url)
+                logging.info('resp = {}'.format(res))
+                res_json = res.json()
+                if "Weekly Time Series" in res_json:
+                    results.append(res_json)
+                elif "Time Series (Digital Currency Weekly)" in res_json:
+                    results.append(res_json)
+                else:
+                    logging.error("{} failed with message {}".format(t, res_json))
+                logging.info("waiting 11 sec...")
+                time.sleep(11)
         return results
 
     def save_quotes(self, results, filename="./data/quotes.json"):

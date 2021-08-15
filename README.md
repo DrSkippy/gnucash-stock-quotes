@@ -18,7 +18,9 @@ poetry run python bin/from_disk.py
 ```
 ### tickers.json
 
-The keys in the tickers dictionary are Gnucash "namespaces".
+The keys in the tickers dictionary determine the Alphavantage end point and the
+Gnucash "namespaces" are all set to "NASDAQ" (this means the Gnucash securities have
+to be set to this namespace as well for imports to work properly).
 
 ```{
 	"configuration" : 
@@ -27,15 +29,14 @@ The keys in the tickers dictionary are Gnucash "namespaces".
 		"url_base" : "https://www.alphavantage.co/query?function=TIME_SERIES_WEEKLY&symbol={}&apikey={}"
 	},
 	"tickers": {
-		"AMEX": [
-			"FBRSX",
-			"TRPDX",
-...
-		"NASDAQ": [
-			"AKAM",
-			"FMCSX",
-...
-		]
+    "DIGITAL_CURRENCY_WEEKLY": [
+      "BTC",
+      ... 
+    ],
+    "TIME_SERIES_WEEKLY": [
+      "TWTR",
+      ...
+	]
 	}
 }
 ```
