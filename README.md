@@ -26,7 +26,10 @@ to be set to this namespace as well for imports to work properly).
 	"configuration" : 
 	{
 		"key" : "<YOUR KEY>",
-		"url_base" : "https://www.alphavantage.co/query?function=TIME_SERIES_WEEKLY&symbol={}&apikey={}"
+		    "url_base": {
+			"DIGITAL_CURRENCY_WEEKLY": "https://www.alphavantage.co/query?function=DIGITAL_CURRENCY_WEEKLY&symbol={}&market=USD&apikey={}",
+      			"TIME_SERIES_WEEKLY": "https://www.alphavantage.co/query?function=TIME_SERIES_WEEKLY&symbol={}&apikey={}"
+			}
 	},
 	"tickers": {
     "DIGITAL_CURRENCY_WEEKLY": [
