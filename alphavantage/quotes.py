@@ -13,6 +13,8 @@ logging.basicConfig(level=logging.DEBUG, format='%(asctime)s %(name)s %(message)
 
 class TickerQuotes:
 
+    RATE_DELAY = 0    # for free tier 11 sec delay between requests
+
     def __init__(self, filename="tickers.json"):
         with open("./tickers.json", "r") as fin:
             config = json.load(fin)
@@ -25,18 +27,15 @@ class TickerQuotes:
 
     def _process_record(self, t_dict):
         try:
+            logging.debug(t_dict["Meta Data"].keys())
             symbol = t_dict["Meta Data"]["2. Symbol"]
             df = pd.DataFrame().from_dict(t_dict["Weekly Time Series"], orient="index")
-            df.columns = ["open","high", "low", "close", "volume"]
         except KeyError:
             symbol = t_dict["Meta Data"]["2. Digital Currency Code"]
+            logging.debug(t_dict["Time Series (Digital Currency Weekly)"].keys())
             df = pd.DataFrame().from_dict(t_dict["Time Series (Digital Currency Weekly)"], orient="index")
-            df.columns = ["open_cny", "open",
-                          "high_cny", "high",
-                          "low_cny", "low",
-                          "close_cny", "close",
-                          "volume", "market_cap"]
 
+        df.columns = ["open", "high", "low", "close", "volume"]
         df.open = df.open.astype(float).fillna(0.0)
         df.high = df.high.astype(float).fillna(0.0)
         df.low = df.low.astype(float).fillna(0.0)
@@ -66,7 +65,7 @@ class TickerQuotes:
                 else:
                     logging.error("{} failed with message {}".format(t, res_json))
                 logging.info("waiting 11 sec...")
-                time.sleep(11)
+                time.sleep(self.RATE_DELAY)
         return results
 
     def save_quotes(self, results, filename="./data/quotes.json"):
