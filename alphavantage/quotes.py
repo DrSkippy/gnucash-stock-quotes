@@ -1,41 +1,65 @@
 #!/usr/bin/env python3
-import requests
-import time 
 import json
 import logging
+import time
 
 import pandas as pd
+import requests
 from matplotlib import pyplot as plt
 from matplotlib.backends.backend_pdf import PdfPages
 
-logging.basicConfig(level=logging.DEBUG, format='%(asctime)s %(name)s %(message)s')
+HIGH_LOW_CLOSE_VOLUME_ = ["open", "high", "low", "close", "volume"]
+TAG_STOCKS_ = "2. Symbol"
+TAG_CRYPTO_ = "2. Digital Currency Code"
+KEY_STOCKS_ = "Time Series (Daily)"
+KEY_CRYPTO_ = "Time Series (Digital Currency Daily)"
 
 
 class TickerQuotes:
+    RATE_DELAY = 0  # for free tier 11 sec delay between requests
 
-    RATE_DELAY = 0    # for free tier 11 sec delay between requests
-
-    def __init__(self, filename="tickers.json"):
-        with open("./tickers.json", "r") as fin:
+    def __init__(self, filename="./tickers.json"):
+        with open(filename, "r") as fin:
             config = json.load(fin)
+            logging.info(f"read from {filename}: {len(config)} records")
         self.key = config["configuration"]["key"]
         self.url_keys = config["configuration"]["url_base"].keys()
         url_keys_test = config["tickers"].keys()
-        assert(self.url_keys == url_keys_test)
+        assert (self.url_keys == url_keys_test)
         self.url_base = config["configuration"]["url_base"]
         self.tickers = config["tickers"]
 
     def _process_record(self, t_dict):
-        try:
-            logging.debug(t_dict["Meta Data"].keys())
-            symbol = t_dict["Meta Data"]["2. Symbol"]
-            df = pd.DataFrame().from_dict(t_dict["Weekly Time Series"], orient="index")
-        except KeyError:
-            symbol = t_dict["Meta Data"]["2. Digital Currency Code"]
-            logging.debug(t_dict["Time Series (Digital Currency Weekly)"].keys())
-            df = pd.DataFrame().from_dict(t_dict["Time Series (Digital Currency Weekly)"], orient="index")
+        """
+        {'Meta Data':
+          {'1. Information': 'Daily Prices (open, high, low, close) and Volumes',
+           '2. Symbol': 'NASDX',
+           '3. Last Refreshed': '2024-09-19',
+           '4. Output Size': 'Compact',
+           '5. Time Zone': 'US/Eastern'},
+           'Time Series (Daily)':
+              {'2024-09-19':
+                 {'1. open': '39.9000',
+                 '2. high': '39.9000',
+                 '3. low': '39.9000',
+                 '4. close': '39.9000',
+                 '5. volume': '0'},
+              ...
+        """
 
-        df.columns = ["open", "high", "low", "close", "volume"]
+        if TAG_STOCKS_ in t_dict["Meta Data"]:
+            symbol = t_dict["Meta Data"][TAG_STOCKS_]
+            logging.info(f"processing {symbol} as stocks")
+            df = pd.DataFrame().from_dict(t_dict[KEY_STOCKS_], orient="index")
+        elif TAG_CRYPTO_ in t_dict["Meta Data"]:
+            symbol = t_dict["Meta Data"][TAG_CRYPTO_]
+            logging.info(f"processing {symbol} as crypto")
+            df = pd.DataFrame().from_dict(t_dict[KEY_CRYPTO_], orient="index")
+        else:
+            logging.error(f"Error: {t_dict['Meta Data'].keys()}")
+            return None, None
+
+        df.columns = HIGH_LOW_CLOSE_VOLUME_
         df.open = df.open.astype(float).fillna(0.0)
         df.high = df.high.astype(float).fillna(0.0)
         df.low = df.low.astype(float).fillna(0.0)
@@ -43,7 +67,6 @@ class TickerQuotes:
         df.volume = df.volume.astype(float).fillna(0.0)
         df["symbol"] = symbol
         df["currency"] = "USD"
-        #df["namespace"] = self.ticker_namespaces[symbol]
         df["namespace"] = "NASDAQ"
         logging.info(df.head())
         return df, symbol
@@ -58,13 +81,8 @@ class TickerQuotes:
                 res = requests.get(url)
                 logging.info('resp = {}'.format(res))
                 res_json = res.json()
-                if "Weekly Time Series" in res_json:
-                    results.append(res_json)
-                elif "Time Series (Digital Currency Weekly)" in res_json:
-                    results.append(res_json)
-                else:
-                    logging.error("{} failed with message {}".format(t, res_json))
-                logging.info("waiting 11 sec...")
+                results.append(res_json)
+                logging.info(f"waiting {self.RATE_DELAY} sec...")
                 time.sleep(self.RATE_DELAY)
         return results
 
