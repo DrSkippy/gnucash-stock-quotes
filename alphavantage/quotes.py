@@ -13,6 +13,7 @@ TAG_STOCKS_ = "2. Symbol"
 TAG_CRYPTO_ = "2. Digital Currency Code"
 KEY_STOCKS_ = "Time Series (Daily)"
 KEY_CRYPTO_ = "Time Series (Digital Currency Daily)"
+KEY_META_DATA_ = "Meta Data"
 
 
 class TickerQuotes:
@@ -47,16 +48,16 @@ class TickerQuotes:
               ...
         """
 
-        if TAG_STOCKS_ in t_dict["Meta Data"]:
-            symbol = t_dict["Meta Data"][TAG_STOCKS_]
+        if TAG_STOCKS_ in t_dict[KEY_META_DATA_]:
+            symbol = t_dict[KEY_META_DATA_][TAG_STOCKS_]
             logging.info(f"processing {symbol} as stocks")
             df = pd.DataFrame().from_dict(t_dict[KEY_STOCKS_], orient="index")
-        elif TAG_CRYPTO_ in t_dict["Meta Data"]:
-            symbol = t_dict["Meta Data"][TAG_CRYPTO_]
+        elif TAG_CRYPTO_ in t_dict[KEY_META_DATA_]:
+            symbol = t_dict[KEY_META_DATA_][TAG_CRYPTO_]
             logging.info(f"processing {symbol} as crypto")
             df = pd.DataFrame().from_dict(t_dict[KEY_CRYPTO_], orient="index")
         else:
-            logging.error(f"Error: {t_dict['Meta Data'].keys()}")
+            logging.error(f"error: {t_dict[KEY_META_DATA_].keys()}")
             return None, None
 
         df.columns = HIGH_LOW_CLOSE_VOLUME_
