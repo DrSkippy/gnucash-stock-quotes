@@ -4,6 +4,7 @@ from logging.config import dictConfig
 
 from alphavantage.quotes import TickerQuotes
 from indexes.asset_index import AssetIndex
+from analyzer.gnucash import Gnucash
 
 dictConfig({
     'version': 1,
@@ -25,11 +26,10 @@ if __name__ == "__main__":
     res = tq.fetch_quotes()  # fetch the quotes from alphavantage
     tq.save_quotes(res)  # save quotes json
     dfs = tq.make_dataframes(res)  # transform quotes to pandas dataframes
-    tq.plot_quotes(dfs)  # pdf of time series
-    tq.save_gnucash_quotes(dfs)  # save the csv for import into gnucash
+    gnu = Gnucash(dfs)  # create gnucash object
 
     ai = AssetIndex()
-    ai.set_up_indexes(dfs, "2024-05-07")
+    ai.set_up_indexes(dfs, "2024-07-12")
     a = ai.get_portfolio("equal_weight_price_index")
     b = ai.get_portfolio("constant_index")
     print(ai.get_portfolio_value("equal_weight_price_index", dfs, "2024-09-25"))

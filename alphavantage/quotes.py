@@ -5,8 +5,6 @@ import time
 
 import pandas as pd
 import requests
-from matplotlib import pyplot as plt
-from matplotlib.backends.backend_pdf import PdfPages
 
 HIGH_LOW_CLOSE_VOLUME_ = ["open", "high", "low", "close", "volume"]
 TAG_STOCKS_ = "2. Symbol"
@@ -98,16 +96,6 @@ class TickerQuotes:
         logging.info("read {} records...".format(len(results)))
         return results
 
-    def plot_quotes(self, dfs, filename="./quotes.pdf"):
-        with PdfPages(filename) as pdf:
-            logging.info("plotting {} dataframes".format(len(dfs)))
-            for df in dfs:
-                symbol = df.symbol[0].strip()
-                logging.info("  plotting symbol={} len={}".format(symbol, len(df.close)))
-                fig = df.plot(y="close", figsize=[13, 5], title="ticker={}".format(symbol)).get_figure()
-                pdf.savefig(fig)
-            plt.close()
-
     def make_dataframes(self, results):
         dfs = []
         for q in results:
@@ -115,7 +103,3 @@ class TickerQuotes:
             df = df.sort_index()
             dfs.append(df[["namespace", "symbol", "close", "currency"]][(df.index > '2016-01-01')])
         return dfs
-
-    def save_gnucash_quotes(self, dfs, filename="./data/prices.csv"):
-        df_out = pd.concat(dfs)
-        df_out.to_csv(filename, header=False)

@@ -9,7 +9,7 @@ from pandas.tseries.offsets import *
 
 class AssetIndex():
 
-    def __init__(self, filename="./tickers.json"):
+    def __init__(self, filename="./indexes.json"):
         with open(filename, "r") as fin:
             config = json.load(fin)
             logging.info(f"read from {filename}: {len(config)} records")

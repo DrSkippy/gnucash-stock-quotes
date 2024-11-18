@@ -1,0 +1,52 @@
+{
+  "asset_indexes": [
+    {
+      "NAME": "equal_weight_price_index",
+      "CREATED_DATE": "2024-09-25",
+      "MEMBERS": [
+        "FFIV",
+        "NET",
+        "SNOW",
+        "FTNT",
+        "ATEN",
+        "AKAM",
+        "CRWD"
+      ]
+    },
+    {
+      "NAME": "constant_index",
+      "CREATED_DATE": "2024-09-25",
+      "MEMBERS": [
+        "FFIV",
+        "NET",
+        "SNOW",
+        "FTNT",
+        "ATEN",
+        "AKAM",
+        "CRWD"
+      ]
+    },
+    {
+      "NAME": "market_cap_index",
+      "CREATED_DATE": "2024-09-25",
+      "MEMBERS": [
+        "FFIV",
+        "NET",
+        "SNOW",
+        "FTNT",
+        "ATEN",
+        "AKAM",
+        "CRWD"
+      ],
+      "MARKET_CAP": [
+        12.802,
+        28.5,
+        37.75,
+        58.6,
+        1.01,
+        15.098,
+        70.22
+      ]
+    }
+  ]
+}

@@ -6,13 +6,17 @@ import pandas as pd
 class CoinbaseTransactionReport:
 
     def __init__(self,
-                 filename="/home/scott/Downloads/Coinbase-5a4f9f53a03fd1019099ae6c-TransactionsHistoryReport-2021-12-20-00_03_03.csv"):
+                 filename="/home/scott/Downloads/csv_version.csv"):
+        """
+        https://accounts.coinbase.com/statements to download the csv
+        :param filename:
+        """
         with open(filename, "r") as infile:
             preamble = True
             data = []
             rdr = csv.reader(infile)
             for row in rdr:
-                if len(row) > 0 and row[0] == 'Timestamp':
+                if len(row) > 0 and row[0] == 'ID':
                     preamble = False
                     self.header = row
                 elif not preamble:
@@ -20,20 +24,20 @@ class CoinbaseTransactionReport:
             self.df = pd.DataFrame(data, columns=self.header)
             self.df = self.df.replace(r'^\s*$', 0.0, regex=True)
             self.df["Quantity Transacted"] = self.df["Quantity Transacted"].apply(float)
-            self.df["Spot Price at Transaction"] = self.df["Spot Price at Transaction"].apply(float)
-            self.df["Subtotal"] = self.df["Subtotal"].apply(float)
-            self.df["Fees"] = self.df["Fees"].apply(float)
-            self.df["Total (inclusive of fees)"] = self.df["Total (inclusive of fees)"].apply(float)
-            self.df["Average Price"] = self.df["Total (inclusive of fees)"] / self.df["Quantity Transacted"]
+            self.df["Price at Transaction"] = self.df["Price at Transaction"].str.replace('$', '').astype(float)
+            self.df["Subtotal"] = self.df["Subtotal"].str.replace('$', '').astype(float)
+            self.df["Fees and/or Spread"] = self.df["Fees and/or Spread"].str.replace('$', '').astype(float)
+            self.df["Total (inclusive of fees and/or spread)"] = self.df["Total (inclusive of fees and/or spread)"].str.replace('$', '').astype(float)
+            self.df["Average Price"] = self.df["Total (inclusive of fees and/or spread)"] / self.df["Quantity Transacted"]
 
     def subtotals(self):
         self.current_prices()
         _df = self.df.groupby(["Asset", "Transaction Type"])[[
-            'Quantity Transacted', "Total (inclusive of fees)", "Fees", "Average Price"]].sum()
+            'Quantity Transacted', "Total (inclusive of fees and/or spread)", "Fees and/or Spread", "Average Price"]].sum()
         _df.reset_index(inplace=True)
         _df = pd.merge(_df, self.prices, on="Asset")
         _df["current_value"] = _df["Quantity Transacted"] * _df["price"]
-        _df["gain"] = (_df["current_value"] - _df["Total (inclusive of fees)"]) / _df["Total (inclusive of fees)"]
+        _df["gain"] = (_df["current_value"] - _df["Total (inclusive of fees and/or spread)"]) / _df["Total (inclusive of fees and/or spread)"]
         return _df
 
     def current_prices(self, filename="/home/scott/Working/gnucash-stock-quotes/data/prices.csv"):
