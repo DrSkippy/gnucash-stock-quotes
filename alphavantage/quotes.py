@@ -17,7 +17,7 @@ KEY_META_DATA_ = "Meta Data"
 class TickerQuotes:
     RATE_DELAY = 0  # for free tier 11 sec delay between requests
 
-    def __init__(self, filename="./tickers.json"):
+    def __init__(self, filename="./tickers.json", tickers=None):
         with open(filename, "r") as fin:
             config = json.load(fin)
             logging.info(f"read from {filename}: {len(config)} records")
@@ -26,7 +26,10 @@ class TickerQuotes:
         url_keys_test = config["tickers"].keys()
         assert (self.url_keys == url_keys_test)
         self.url_base = config["configuration"]["url_base"]
-        self.tickers = config["tickers"]
+        if tickers is None:
+            self.tickers = config["tickers"]
+        else:
+            self.tickers = tickers
 
     def _process_record(self, t_dict):
         """

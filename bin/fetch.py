@@ -28,8 +28,6 @@ if __name__ == "__main__":
     tq.save_quotes(res)  # save quotes json
     dfs = tq.make_dataframes(res)  # transform quotes to pandas dataframes
     gnu = Gnucash(dfs)  # create gnucash object
-    comp = Compare(dfs)
-    comp.plot_quotes(dfs, "PIMIX", "QQQM")  # plot quotes
 
     ai = AssetIndex()
     ai.set_up_indexes(dfs, "2024-07-12")

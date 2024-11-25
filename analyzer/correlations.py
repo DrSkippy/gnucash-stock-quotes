@@ -16,16 +16,15 @@ class Compare:
                 symbol = df.symbol[-1].strip()
                 if symbol == ticker1:
                     logging.info("  plotting symbol={} len={}".format(symbol, len(df.close)))
-                    fig = df.plot(y="close", figsize=[12, 5], title="ticker={}".format(symbol)).get_figure()
+                    fig = df.plot(y="close", figsize=[10, 5], title="ticker={}".format(symbol)).get_figure()
                     pdf.savefig(fig)
                     ticker1_closes = df.close
                 elif symbol == ticker2:
                     logging.info("  plotting symbol={} len={}".format(symbol, len(df.close)))
-                    fig = df.plot(y="close", figsize=[12, 5], title="ticker={}".format(symbol)).get_figure()
+                    fig = df.plot(y="close", figsize=[10, 5], title="ticker={}".format(symbol)).get_figure()
                     pdf.savefig(fig)
                     ticker2_closes = df.close
-            f = plt.figure()
-            f.figsize=[12, 12]
+            f = plt.figure(figsize=[10, 10])
             plt.plot(ticker1_closes, ticker2_closes, "*-")
             plt.xlabel(ticker1)
             plt.ylabel(ticker2)
