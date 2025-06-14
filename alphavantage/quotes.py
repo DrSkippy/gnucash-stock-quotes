@@ -1,23 +1,27 @@
-#!/usr/bin/env python3
+#!/usr/bin/env -S poetry run python
+
 import json
 import logging
 import time
 
 import pandas as pd
 import requests
-
-HIGH_LOW_CLOSE_VOLUME_ = ["open", "high", "low", "close", "volume"]
-TAG_STOCKS_ = "2. Symbol"
-TAG_CRYPTO_ = "2. Digital Currency Code"
-KEY_STOCKS_ = "Time Series (Daily)"
-KEY_CRYPTO_ = "Time Series (Digital Currency Daily)"
-KEY_META_DATA_ = "Meta Data"
+from alphavantage.db_utils import QuoteDatabase
 
 
 class TickerQuotes:
+  
+    HIGH_LOW_CLOSE_VOLUME_ = ["open", "high", "low", "close", "volume"]
+    TAG_STOCKS_ = "2. Symbol"
+    TAG_CRYPTO_ = "2. Digital Currency Code"
+    KEY_STOCKS_ = "Time Series (Daily)"
+    KEY_CRYPTO_ = "Time Series (Digital Currency Daily)"
+    KEY_META_DATA_ = "Meta Data"
     RATE_DELAY = 0  # for free tier 11 sec delay between requests
+    TICKERS_FILE = "./tickers.json"
+    QUOTES_FILE = "./data/quotes.json"
 
-    def __init__(self, filename="./tickers.json", tickers=None):
+    def __init__(self, filename=TICKERS_FILE, tickers=None):
         with open(filename, "r") as fin:
             config = json.load(fin)
             logging.info(f"read from {filename}: {len(config)} records")
@@ -30,6 +34,8 @@ class TickerQuotes:
             self.tickers = config["tickers"]
         else:
             self.tickers = tickers
+        self.db = QuoteDatabase(config)
+        self.db.create_tables()
 
     def _process_record(self, t_dict):
         """
@@ -49,19 +55,19 @@ class TickerQuotes:
               ...
         """
 
-        if TAG_STOCKS_ in t_dict[KEY_META_DATA_]:
-            symbol = t_dict[KEY_META_DATA_][TAG_STOCKS_]
-            logging.info(f"processing {symbol} as stocks")
-            df = pd.DataFrame().from_dict(t_dict[KEY_STOCKS_], orient="index")
-        elif TAG_CRYPTO_ in t_dict[KEY_META_DATA_]:
-            symbol = t_dict[KEY_META_DATA_][TAG_CRYPTO_]
-            logging.info(f"processing {symbol} as crypto")
-            df = pd.DataFrame().from_dict(t_dict[KEY_CRYPTO_], orient="index")
+        if self.TAG_STOCKS_ in t_dict[self.KEY_META_DATA_]:
+            symbol = t_dict[self.KEY_META_DATA_][self.TAG_STOCKS_]
+            logging.info(f"Processing {symbol} as stocks")
+            df = pd.DataFrame().from_dict(t_dict[self.KEY_STOCKS_], orient="index")
+        elif self.TAG_CRYPTO_ in t_dict[self.KEY_META_DATA_]:
+            symbol = t_dict[self.KEY_META_DATA_][self.TAG_CRYPTO_]
+            logging.info(f"Processing {symbol} as crypto")
+            df = pd.DataFrame().from_dict(t_dict[self.KEY_CRYPTO_], orient="index")
         else:
-            logging.error(f"error: {t_dict[KEY_META_DATA_].keys()}")
+            logging.error(f"Error: {t_dict[self.KEY_META_DATA_].keys()}")
             return None, None
 
-        df.columns = HIGH_LOW_CLOSE_VOLUME_
+        df.columns = self.HIGH_LOW_CLOSE_VOLUME_
         df.open = df.open.astype(float).fillna(0.0)
         df.high = df.high.astype(float).fillna(0.0)
         df.low = df.low.astype(float).fillna(0.0)
@@ -77,27 +83,40 @@ class TickerQuotes:
         results = []
         for key in self.url_keys:
             for t in self.tickers[key]:
-                logging.info('getting ticker = {}'.format(t))
+                logging.info('Getting ticker = {}'.format(t))
                 url = self.url_base[key].format(t, self.key)
                 logging.info('url = {}'.format(url))
                 res = requests.get(url)
                 logging.info('resp = {}'.format(res))
                 res_json = res.json()
                 results.append(res_json)
-                logging.info(f"waiting {self.RATE_DELAY} sec...")
+                logging.info(f"Waiting {self.RATE_DELAY} sec...")
                 time.sleep(self.RATE_DELAY)
         return results
 
-    def save_quotes(self, results, filename="./data/quotes.json"):
+    def save_quotes(self, results, filename=QUOTES_FILE):
+        """Save quotes to both JSON file and database"""
+        # Save to JSON file
         with open(filename, "w") as fout:
             logging.info("writing {} records...".format(len(results)))
             fout.write(json.dumps(results))
+        
+        # Save to database
+        dfs = self.make_dataframes(results)
+        for df in dfs:
+            self.db.save_quotes(df)
 
-    def read_quotes(selfs, filename="./data/quotes.json"):
-        with open(filename, "r") as fin:
-            results = json.load(fin)
-        logging.info("read {} records...".format(len(results)))
-        return results
+    def read_quotes(self, filename=QUOTES_FILE, start_date=None, end_date=None, symbols=None):
+        """Read quotes from either JSON file or database"""
+        if start_date or end_date or symbols:
+            # Use database for filtered queries
+            return self.db.read_quotes(start_date, end_date, symbols)
+        else:
+            # Use JSON file for full dataset
+            with open(filename, "r") as fin:
+                results = json.load(fin)
+            logging.info("read {} records...".format(len(results)))
+            return results
 
     def make_dataframes(self, results):
         dfs = []
@@ -106,3 +125,36 @@ class TickerQuotes:
             df = df.sort_index()
             dfs.append(df[["namespace", "symbol", "close", "currency"]][(df.index > '2016-01-01')])
         return dfs
+
+    def __del__(self):
+        """Cleanup database connection"""
+        if hasattr(self, 'db'):
+            self.db.close()
+
+if __name__ == "__main__":
+    from logging.config import dictConfig
+
+    dictConfig({
+        'version': 1,
+        'formatters': {'default': {
+            'format': '[%(asctime)s] %(levelname)s in %(module)s %(funcName)s at %(lineno)s: %(message)s',
+        }},
+        'handlers': {
+            'console': {
+                'class': 'logging.StreamHandler',
+                'formatter': 'default',
+                'stream': 'ext://sys.stdout'
+            }
+        },
+        'root': {
+            'level': 'INFO',
+            'handlers': ['console']
+        }
+    })
+    
+    logging.info("starting")
+    tq = TickerQuotes()
+    results = tq.fetch_quotes()
+    tq.save_quotes(results)
+    dfs = tq.make_dataframes(results)
+    logging.info(dfs)
