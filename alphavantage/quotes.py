@@ -106,17 +106,17 @@ class TickerQuotes:
         for df in dfs:
             self.db.save_quotes(df)
 
-    def read_quotes(self, filename=QUOTES_FILE, start_date=None, end_date=None, symbols=None):
+    def read_quotes(self, filename=None, start_date=None, end_date=None, symbols=None):
         """Read quotes from either JSON file or database"""
-        if start_date or end_date or symbols:
-            # Use database for filtered queries
-            return self.db.read_quotes(start_date, end_date, symbols)
-        else:
+        if filename:
             # Use JSON file for full dataset
             with open(filename, "r") as fin:
                 results = json.load(fin)
             logging.info("read {} records...".format(len(results)))
-            return results
+            return self.make_dataframes(results)
+        else:
+            # Use database for filtered queries
+            return self.db.read_quotes(start_date, end_date, symbols)
 
     def make_dataframes(self, results):
         dfs = []

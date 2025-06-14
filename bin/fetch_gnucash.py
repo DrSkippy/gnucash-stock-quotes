@@ -35,13 +35,3 @@ if __name__ == "__main__":
     dfs = tq.read_quotes()  # save quotes json
     gnu = Gnucash(dfs)  # create gnucash object
 
-    ai = AssetIndex()
-    ai.set_up_indexes(dfs, date_ninety.strftime(FMT))
-    a = ai.get_portfolio("equal_weight_price_index")
-    b = ai.get_portfolio("constant_index")
-    print(ai.get_portfolio_value("equal_weight_price_index", dfs, date_ninety.strftime(FMT)))
-    print(ai.get_portfolio_value("constant_index", dfs, date_ninety.strftime(FMT)))
-    print(ai.get_portfolio_value("market_cap_index", dfs, date_ninety.strftime(FMT)))
-    dfi = ai.get_comparison_dataframe("market_cap_index", dfs, {"FFIV": 59.4106},
-                                      date_ninety.strftime(FMT), date_today.strftime(FMT))
-    ai.plot_quotes(dfi, "market_cap_index.pdf")
