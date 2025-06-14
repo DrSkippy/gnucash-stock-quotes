@@ -61,8 +61,7 @@ class QuoteDatabase:
             cursor = self.connection.cursor()
             
             # Convert DataFrame to list of tuples for insertion
-            records = df.to_records(index=True)
-            print(records, df)
+            records = df.to_records(index=True
             insert_query = """
                 INSERT INTO quotes (date, symbol, namespace, close, currency)
                 VALUES (%s, %s, %s, %s, %s)
