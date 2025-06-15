@@ -30,11 +30,9 @@ FMT = "%Y-%m-%d"
 
 if __name__ == "__main__":
     date_today = datetime.datetime.now()
-    date_ninety = date_today - datetime.timedelta(days=12*7-2)
+    date_ninety = date_today - datetime.timedelta(days=(12*7)-2)
     tq = TickerQuotes()
-    dfs = tq.read_quotes()  # save quotes json
-    gnu = Gnucash(dfs)  # create gnucash object
-
+    dfs = tq.read_quotes()  
     ai = AssetIndex()
     ai.set_up_indexes(dfs, date_ninety.strftime(FMT))
     a = ai.get_portfolio("equal_weight_price_index")
@@ -44,4 +42,4 @@ if __name__ == "__main__":
     print(ai.get_portfolio_value("market_cap_index", dfs, date_ninety.strftime(FMT)))
     dfi = ai.get_comparison_dataframe("market_cap_index", dfs, {"FFIV": 59.4106},
                                       date_ninety.strftime(FMT), date_today.strftime(FMT))
-    ai.plot_quotes(dfi, "market_cap_index.pdf")
+    ai.plot_quotes(dfi, "./data/market_cap_index.pdf")

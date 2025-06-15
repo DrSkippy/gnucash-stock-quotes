@@ -4,6 +4,7 @@ import logging
 import mysql.connector
 from mysql.connector import Error
 import pandas as pd
+import numpy as np
 from datetime import datetime
 
 class QuoteDatabase:
@@ -106,8 +107,7 @@ class QuoteDatabase:
             
             query += " ORDER BY date, symbol"
             
-            df = pd.read_sql(query, self.connection, params=params)
-            df.set_index('date', inplace=True)
+            df = pd.read_sql(query, self.connection, params=params, parse_dates=["date"])
             logging.info(f"Successfully read {len(df)} quotes from database")
             return df
         except Error as e:

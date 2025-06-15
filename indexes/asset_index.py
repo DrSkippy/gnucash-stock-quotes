@@ -9,7 +9,10 @@ from pandas.tseries.offsets import *
 
 class AssetIndex():
 
-    def __init__(self, filename="./indexes.json"):
+    INDEX_FILE = "./indexes.json"
+    COMPARE_INDEX_FILE = "./data/compare_index.pdf"
+
+    def __init__(self, filename=INDEX_FILE):
         with open(filename, "r") as fin:
             config = json.load(fin)
             logging.info(f"read from {filename}: {len(config)} records")
@@ -44,13 +47,9 @@ class AssetIndex():
 
     def start_prices(self, dfs, index_members, value_date):
         index_prices = {}
-        for m in index_members:
-            for df in dfs:
-                logging.debug(f"looking for {m} in price data {df.head(1)}")
-                if m in df.symbol[0]:
-                    break
-            start_price = df.loc[value_date, "close"]
-            index_prices[m] = start_price
+        for member_symbol in index_members:
+            df = dfs[(dfs.symbol == member_symbol) & (dfs.date == value_date)]
+            index_prices[member_symbol] = df["close"].values[0]
         return index_prices
 
     def get_portfolio(self, index_name):
@@ -60,10 +59,9 @@ class AssetIndex():
         portfolio = self.portfolios[index_name]
         value = 0
         for member_symbol in portfolio:
-            for df in dfs:
-                if member_symbol in df.symbol[0]:
-                    break
-            value += portfolio[member_symbol] * df.loc[value_date, "close"]
+            df = dfs[(dfs.symbol == member_symbol) & (dfs.date == value_date)]
+            value += portfolio[member_symbol] * df["close"].values[0]
+        logging.info(f"Index: {index_name} has value of Value = {value}")
         return value
 
     def get_comparison_dataframe(self, index_name, dfs, comparison,
@@ -80,30 +78,25 @@ class AssetIndex():
         logging.debug(f"length of timeseries = {len(timeseries)}")
 
         for member_symbol in portfolio:
-            for df in dfs:
-                if member_symbol in df.symbol[0]:
-                    for i, value_date in enumerate(date_index):
-                        vd = value_date.date().strftime("%Y-%m-%d")
-                        try:
-                            timeseries[vd][0] += df.loc[vd, "close"] * portfolio[member_symbol]
-                        except KeyError as e:
-                            logging.warning(f"key error for {member_symbol} at {vd} -- skipping")
-                    continue
-        for df in dfs:
-            if comp_key in df.symbol[0]:
-                for i, value_date in enumerate(date_index):
-                    vd = value_date.date().strftime("%Y-%m-%d")
-                    try:
-                        timeseries[vd][1] = df.loc[vd, "close"] * comp_value
-                    except KeyError as e:
-                        logging.warning(f"key error for {member_symbol} at {vd} -- skipping")
-                break
+            for i, value_date in enumerate(date_index):
+                vd = value_date.date().strftime("%Y-%m-%d")
+                try:
+                    timeseries[vd][0] += dfs[(dfs.symbol == member_symbol) & (dfs.date == vd)]["close"].values[0] * portfolio[member_symbol]
+                except (IndexError, KeyError) as e:
+                    logging.warning(f"key error for {member_symbol} at {vd} -- skipping")
+        for i, value_date in enumerate(date_index):
+            vd = value_date.date().strftime("%Y-%m-%d")
+            try:
+                timeseries[vd][1] = dfs[(dfs.symbol == comp_key) & (dfs.date == vd)]["close"].values[0] * comp_value
+            except (IndexError, KeyError) as e:
+                logging.warning(f"key error for {comp_key} at {vd} -- skipping")
+
         df = pd.DataFrame.from_dict(timeseries, orient="index", columns=[index_name, comp_key])
         return df.loc[(df != 0).any(axis=1)]  # Remove rows with all zeros
 
-    def plot_quotes(self, dfs, filename="./compare_index.pdf"):
+    def plot_quotes(self, df, filename=COMPARE_INDEX_FILE):
         with PdfPages(filename) as pdf:
-            logging.info("plotting {} dataframes".format(len(dfs)))
-            fig = dfs.plot(figsize=[13, 8]).get_figure()
+            logging.info("plotting {} dataframes".format(len(df)))
+            fig = df.plot(figsize=[13, 8]).get_figure()
             pdf.savefig(fig)
             plt.close()
