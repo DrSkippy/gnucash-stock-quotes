@@ -64,12 +64,11 @@ class QuoteDatabase:
             # Convert DataFrame to list of tuples for insertion
             records = df.to_records(index=True)
             insert_query = """
-                INSERT INTO quotes (date, symbol, namespace, close, currency)
-                VALUES (%s, %s, %s, %s, %s)
-                ON DUPLICATE KEY UPDATE
-                close = VALUES(close)
-            """
-            
+                           INSERT INTO quotes (date, symbol, namespace, close, currency)
+                           VALUES (%s, %s, %s, %s, %s) ON DUPLICATE KEY
+                           UPDATE close = VALUES (close) \
+                           """
+
             # Prepare data for insertion
             data = [(record.index, record.symbol, record.namespace, 
                     record.close, record.currency) for record in records]
