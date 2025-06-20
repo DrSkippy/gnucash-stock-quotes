@@ -17,6 +17,7 @@ class TickerQuotes:
     KEY_STOCKS_ = "Time Series (Daily)"
     KEY_CRYPTO_ = "Time Series (Digital Currency Daily)"
     KEY_META_DATA_ = "Meta Data"
+    ERROR_MESSAGE_ = "Error Message"
     RATE_DELAY = 0  # for free tier 11 sec delay between requests
     TICKERS_FILE = "./tickers.json"
     QUOTES_FILE = "./data/quotes.json"
@@ -54,6 +55,9 @@ class TickerQuotes:
                  '5. volume': '0'},
               ...
         """
+        if self.ERROR_MESSAGE_ in t_dict:
+            logging.error(f"Error: {t_dict[self.ERROR_MESSAGE_]}")
+            return None, None
 
         if self.TAG_STOCKS_ in t_dict[self.KEY_META_DATA_]:
             symbol = t_dict[self.KEY_META_DATA_][self.TAG_STOCKS_]
@@ -122,6 +126,9 @@ class TickerQuotes:
         dfs = []
         for q in results:
             df, symbol = self._process_record(q)
+            if df is None:
+                logging.error(f"Error skipping processing record for {q.get(self.KEY_META_DATA_, {}).get(self.TAG_STOCKS_, 'Unknown')} due to error. See logs for details.")
+                continue
             df = df.sort_index()
             dfs.append(df[["namespace", "symbol", "close", "currency"]][(df.index > '2016-01-01')])
         return dfs

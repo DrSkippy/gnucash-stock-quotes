@@ -1,11 +1,12 @@
 #!/usr/bin/env -S poetry run python
 
 import logging
+
 import mysql.connector
-from mysql.connector import Error
-import pandas as pd
 import numpy as np
-from datetime import datetime
+import pandas as pd
+from mysql.connector import Error
+
 
 class QuoteDatabase:
     def __init__(self, config):
@@ -34,19 +35,18 @@ class QuoteDatabase:
         """Create necessary tables if they don't exist"""
         try:
             cursor = self.connection.cursor()
-            
+
             # Create quotes table
-            cursor.execute("""
-                CREATE TABLE IF NOT EXISTS quotes (
-                    date DATE,
-                    symbol VARCHAR(20),
-                    namespace VARCHAR(20),
-                    close DECIMAL(20,6),
-                    currency VARCHAR(10),
-                    PRIMARY KEY (date, symbol, namespace)
-                )
-            """)
-            
+            cursor.execute("""CREATE TABLE IF NOT EXISTS quotes
+            (   date
+                DATE,
+                symbol
+                VARCHAR ( 20 ),
+                namespace VARCHAR ( 20 ),
+                close DECIMAL ( 20, 6 ),
+                currency VARCHAR ( 10 ),
+                PRIMARY KEY ( date, symbol, namespace ) ) """)
+
             self.connection.commit()
             logging.info("Tables created successfully")
         except Error as e:
@@ -60,19 +60,20 @@ class QuoteDatabase:
         """Save quotes from DataFrame to database"""
         try:
             cursor = self.connection.cursor()
-            
+
             # Convert DataFrame to list of tuples for insertion
             records = df.to_records(index=True)
             insert_query = """
                            INSERT INTO quotes (date, symbol, namespace, close, currency)
                            VALUES (%s, %s, %s, %s, %s) ON DUPLICATE KEY
-                           UPDATE close = VALUES (close) \
+                           UPDATE close =
+                           VALUES (close) \
                            """
 
             # Prepare data for insertion
-            data = [(record.index, record.symbol, record.namespace, 
-                    record.close, record.currency) for record in records]
-            
+            data = [(record.index, record.symbol, record.namespace,
+                     record.close, record.currency) for record in records]
+
             cursor.executemany(insert_query, data)
             self.connection.commit()
             logging.info(f"Successfully saved {len(data)} quotes to database")
@@ -89,7 +90,7 @@ class QuoteDatabase:
             query = "SELECT date, symbol, namespace, close, currency FROM quotes"
             conditions = []
             params = []
-            
+
             if start_date:
                 conditions.append("date >= %s")
                 params.append(start_date)
@@ -100,12 +101,12 @@ class QuoteDatabase:
                 placeholders = ', '.join(['%s'] * len(symbols))
                 conditions.append(f"symbol IN ({placeholders})")
                 params.extend(symbols)
-            
+
             if conditions:
                 query += " WHERE " + " AND ".join(conditions)
-            
+
             query += " ORDER BY date, symbol"
-            
+
             df = pd.read_sql(query, self.connection, params=params, parse_dates=["date"])
             logging.info(f"Successfully read {len(df)} quotes from database")
             return df
@@ -117,4 +118,4 @@ class QuoteDatabase:
         """Close database connection"""
         if self.connection and self.connection.is_connected():
             self.connection.close()
-            logging.info("Database connection closed") 
+            logging.info("Database connection closed")
