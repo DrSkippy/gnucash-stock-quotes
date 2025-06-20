@@ -1,9 +1,10 @@
-#!/usr/bin/env python3
+#!/usr/bin/env -S poetry run python
+
 import argparse
 
 from alphavantage.quotes import TickerQuotes
 from analyzer.gnucash import Gnucash
-from analyzer.correlations import Compare
+from analyzer.plots import CorrelationsPlotter
 
 import logging
 from logging.config import dictConfig
@@ -51,8 +52,7 @@ if __name__ == "__main__":
     assert (len(symbols) == 2)
     logging.debug(f"tickers={tickers}")
     tq = TickerQuotes(tickers=tickers)
-    res = tq.fetch_quotes()  # fetch the quotes from alphavantage
-    tq.save_quotes(res)  # save quotes json
+    tq.read_quotes()  # save quotes json
     dfs = tq.make_dataframes(res)  # transform quotes to pandas dataframes
-    comp = Compare(dfs)
+    comp = CorrelationsPlotter(dfs, symbols)  # create correlations plotter
     comp.plot_quotes(dfs, *symbols)  # plot quotes

@@ -6,7 +6,7 @@ import datetime
 from alphavantage.quotes import TickerQuotes
 from indexes.asset_index import AssetIndex
 from analyzer.gnucash import Gnucash
-from analyzer.correlations import Compare
+from analyzer.plots import Compare
 
 dictConfig({
     'version': 1,
