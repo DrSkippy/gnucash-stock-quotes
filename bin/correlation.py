@@ -3,7 +3,6 @@
 import argparse
 
 from alphavantage.quotes import TickerQuotes
-from analyzer.gnucash import Gnucash
 from analyzer.plots import CorrelationsPlotter
 
 import logging
@@ -26,33 +25,17 @@ dictConfig({
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Correlations between two tickers with timeseries plots and correlation plot. Example: poetry run python bin/correlation.py -s "FFIV" "CRWD"')
-    parser.add_argument('-c', '--crypto',
-                        action='append',
-                        nargs="+",
-                        dest='crypto',
-                        help='2, 1 or zero cryto currency symbols')
     parser.add_argument('-s', '--security',
                         action='append',
                         nargs="+",
                         dest='security',
-                        help='2, 1 or zero security symbols')
+                        help='2 security symbols')
     args = vars(parser.parse_args())
-    symbols = []
-    tickers = {
-        "DIGITAL_CURRENCY_DAILY": [],
-        "TIME_SERIES_DAILY": []
-    }
-    if args['crypto'] is not None:
-        symbols += args['crypto'][0]
-        tickers["DIGITAL_CURRENCY_DAILY"] = args['crypto'][0]
-    if args['security'] is not None:
-        symbols += args['security'][0]
-        tickers["TIME_SERIES_DAILY"] = args['security'][0]
+    symbols = args['security'][0] if args['security'] is not None else []
     logging.debug(f"args={args} symbols={symbols}")
     assert (len(symbols) == 2)
-    logging.debug(f"tickers={tickers}")
-    tq = TickerQuotes(tickers=tickers)
-    tq.read_quotes()  # save quotes json
-    dfs = tq.make_dataframes(res)  # transform quotes to pandas dataframes
-    comp = CorrelationsPlotter(dfs, symbols)  # create correlations plotter
+    tq = TickerQuotes()
+    dfs = tq.read_quotes(symbols=symbols)
+    logging.debug(f"data frame has {dfs.symbol.unique()}")
+    comp = CorrelationsPlotter(dfs)  # create correlations plotter
     comp.plot_quotes(dfs, *symbols)  # plot quotes
