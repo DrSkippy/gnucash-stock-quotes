@@ -1,59 +1,116 @@
 import logging
-
+from typing import List, Optional, Union
 import pandas as pd
 from matplotlib import pyplot as plt
 from matplotlib.backends.backend_pdf import PdfPages
 
-PDF_FILE = "./data/quotes.pdf"
-PDF_CORRELATIONS_FILE = "./data/correlations.pdf"
+# Constants
+QUOTES_PDF_PATH = "./data/quotes.pdf"
+CORRELATIONS_PDF_PATH = "./data/correlations.pdf"
+PLOT_FIGSIZE_SINGLE = [12, 5]
+PLOT_FIGSIZE_CORRELATION = [10, 10]
+ANNOTATION_INTERVAL = 7
+ANNOTATION_FONTSIZE = 6
+DATE_FORMAT_LENGTH = 10
 
 
-def plot_quotes(dfs, filename=PDF_FILE, symbol_list=None):
-    if symbol_list is None:
-        symbol_list: List[Any] = list(dfs.symbol.unique())
+def plot_stock_prices(dataframes: pd.DataFrame,
+                      filename: str = QUOTES_PDF_PATH,
+                      symbols: Optional[List[str]] = None) -> None:
+    """Plot stock prices for multiple symbols and save to PDF."""
+    if symbols is None:
+        symbols = list(dataframes.symbol.unique())
+
     with PdfPages(filename) as pdf:
-        logging.info("plotting {} dataframes".format(len(dfs)))
-        for symbol in symbol_list:
-            df = dfs[dfs.symbol == symbol]
-            logging.info("  plotting symbol={} len={}".format(symbol, len(df.close)))
-            fig = df.plot(x="date", y="close", figsize=[12, 5], title="ticker={}".format(symbol)).get_figure()
+        logging.info(f"Plotting {len(dataframes)} dataframes")
+        for symbol in symbols:
+            df = dataframes[dataframes.symbol == symbol]
+            logging.info(f"Plotting symbol={symbol} len={len(df.close)}")
+            fig = df.plot(
+                x="date",
+                y="close",
+                figsize=PLOT_FIGSIZE_SINGLE,
+                title=f"ticker={symbol}"
+            ).get_figure()
             pdf.savefig(fig)
         plt.close()
 
 
 class CorrelationsPlotter:
+    def __init__(self, dataframes: pd.DataFrame):
+        self.dataframes = dataframes.reset_index(drop=True)
+        print(self.dataframes.info())
 
-    def __init__(self, dfs):
-        self.dfs = dfs
+    def plot_correlation(self,
+                         ticker1: str,
+                         ticker2: str,
+                         filename: str = CORRELATIONS_PDF_PATH) -> None:
+        """Plot correlation analysis between two tickers."""
+        with PdfPages(filename) as pdf:
+            logging.info(f"Plotting {ticker1} vs {ticker2} dataframes")
 
-    def plot_quotes(self, dfs, ticker1, ticker2, filename=PDF_CORRELATIONS_FILE):
-        with (PdfPages(filename) as pdf):
-            logging.info("plotting {ticker1} vs {ticker2} dataframes")
-            df1 = dfs[dfs.symbol == ticker1]
-            df2 = dfs[dfs.symbol == ticker2]
+            # Plot individual stock prices
+            df1 = self._get_ticker_data(ticker1)
+            df2 = self._get_ticker_data(ticker2)
+            self._plot_single_ticker(df1, ticker1, pdf)
+            self._plot_single_ticker(df2, ticker2, pdf)
 
-            logging.info("  plotting symbol={} len={}".format(ticker1, len(df1.close)))
-            fig = df1.plot(x="date", y="close", figsize=[10, 5], title="ticker={}".format(ticker1)).get_figure()
-            pdf.savefig(fig)
-            ticker1_closes = df1.close
-            logging.info("  plotting symbol={} len={}".format(ticker2, len(df2.close)))
-            fig = df2.plot(x="date", y="close", figsize=[10, 5], title="ticker={}".format(ticker2)).get_figure()
-            pdf.savefig(fig)
-            ticker2_closes = df2.close
+            # Plot correlation
+            merged_df = self._prepare_correlation_data(df1, df2, ticker1, ticker2)
+            self._plot_correlation_scatter(merged_df, ticker1, ticker2, pdf)
 
-            merged_df = pd.merge_asof(df1, df2, on="date", suffixes=("_" + ticker1, "_" + ticker2))[["date", "close_" + ticker1, "close_" + ticker2]]
-            merged_df.set_index("date", inplace=True)
-            print(merged_df.corr())
-
-            ax = merged_df.plot(x="close_" + ticker1, y="close_" + ticker2, style="*-", figsize=[10, 10])
-            fig = ax.get_figure()
-            counter = 0
-            for i, row in merged_df.iterrows():
-                if counter % 7 == 0:
-                    ax.annotate(str(i)[:10], (row["close_" + ticker1], row['close_' + ticker2]),
-                            textcoords="offset points", xytext=(0, 5), ha='center', fontsize=6)
-                counter += 1
-            plt.xlabel(ticker1)
-            plt.ylabel(ticker2)
-            pdf.savefig(fig)
             plt.close()
+
+    def _get_ticker_data(self, ticker: str) -> pd.DataFrame:
+        return self.dataframes[self.dataframes.symbol == ticker]
+
+    def _plot_single_ticker(self, df: pd.DataFrame, ticker: str, pdf: PdfPages) -> None:
+        logging.info(f"Plotting symbol={ticker} len={len(df.close)}")
+        fig = df.plot(
+            x="date",
+            y="close",
+            figsize=PLOT_FIGSIZE_SINGLE,
+            title=f"ticker={ticker}"
+        ).get_figure()
+        pdf.savefig(fig)
+
+    def _prepare_correlation_data(self,
+                                  df1: pd.DataFrame,
+                                  df2: pd.DataFrame,
+                                  ticker1: str,
+                                  ticker2: str) -> pd.DataFrame:
+        merged_df = pd.merge_asof(
+            df1, df2,
+            on="date",
+            suffixes=(f"_{ticker1}", f"_{ticker2}")
+        )[["date", f"close_{ticker1}", f"close_{ticker2}"]]
+        merged_df.set_index("date", inplace=True)
+        print(merged_df.corr())
+        return merged_df
+
+    def _plot_correlation_scatter(self,
+                                  df: pd.DataFrame,
+                                  ticker1: str,
+                                  ticker2: str,
+                                  pdf: PdfPages) -> None:
+        ax = df.plot(
+            x=f"close_{ticker1}",
+            y=f"close_{ticker2}",
+            style="*-",
+            figsize=PLOT_FIGSIZE_CORRELATION
+        )
+
+        for i, (idx, row) in enumerate(df.iterrows()):
+            if i % ANNOTATION_INTERVAL == 0:
+                ax.annotate(
+                    str(idx)[:DATE_FORMAT_LENGTH],
+                    (row[f"close_{ticker1}"], row[f"close_{ticker2}"]),
+                    textcoords="offset points",
+                    xytext=(0, 5),
+                    ha='center',
+                    fontsize=ANNOTATION_FONTSIZE
+                )
+
+        plt.xlabel(ticker1)
+        plt.ylabel(ticker2)
+        pdf.savefig(ax.get_figure())

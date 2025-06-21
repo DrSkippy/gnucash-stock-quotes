@@ -34,8 +34,10 @@ if __name__ == "__main__":
     symbols = args['security'][0] if args['security'] is not None else []
     logging.debug(f"args={args} symbols={symbols}")
     assert (len(symbols) == 2)
+
     tq = TickerQuotes()
     dfs = tq.read_quotes(symbols=symbols)
     logging.debug(f"data frame has {dfs.symbol.unique()}")
+
     comp = CorrelationsPlotter(dfs)  # create correlations plotter
-    comp.plot_quotes(dfs, *symbols)  # plot quotes
+    comp.plot_correlation(*symbols)  # plot quotes

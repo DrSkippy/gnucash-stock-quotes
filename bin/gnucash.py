@@ -31,4 +31,4 @@ if __name__ == "__main__":
     date_ninety = date_today - datetime.timedelta(days=12 * 7 - 2)
     tq = TickerQuotes()
     dfs = tq.read_quotes()  # save quotes json
-    gnu = Gnucash(dfs)  # create gnucash object
+    Gnucash(dfs).process_quotes()  # create gnucash object
