@@ -64,7 +64,7 @@ def main():
     analyzer.analyze_and_plot(
         PortfolioAnalyzer.EQUAL_WEIGHT_INDEX,
         comparison_portfolio={"FFIV": 0},
-        output_path=f"./data/{PortfolioAnalyzer.EQUAL_WEIGHT_INDEX}_index_comparison.pdf"
+        output_path=f"./data/{PortfolioAnalyzer.EQUAL_WEIGHT_INDEX}_comparison.pdf"
     )
 
 
