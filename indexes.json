@@ -47,6 +47,44 @@
         15.098,
         70.22
       ]
+    },
+    {
+      "NAME": "equal_weight_price_index_quantum",
+      "CREATED_DATE": "2025-01-25",
+      "MEMBERS": [
+        "FORM",
+        "QBTS",
+        "IONQ",
+        "RGTI",
+        "QUBT"
+      ]
+    },
+    {
+      "NAME": "constant_index_quantum",
+      "CREATED_DATE": "2025-01-25",
+      "MEMBERS": [
+        "FORM",
+        "QBTS",
+        "IONQ",
+        "RGTI",
+        "QUBT"
+      ]
+    },
+    {
+      "NAME": "market_cap_index_quantum",
+      "CREATED_DATE": "2025-01-25",
+      "MEMBERS": [
+        "QBTS",
+        "IONQ",
+        "RGTI",
+        "QUBT"
+      ],
+      "MARKET_CAP": [
+        4.9,
+        10.4,
+        3.6,
+        2.7
+      ]
     }
   ]
 }

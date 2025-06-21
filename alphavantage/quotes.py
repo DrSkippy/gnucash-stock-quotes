@@ -55,6 +55,10 @@ class TickerQuotes:
                  '5. volume': '0'},
               ...
         """
+        if self.KEY_META_DATA_ not in t_dict:
+            logging.error(f"Error: {t_dict.keys()}")
+            return None, None
+
         if self.ERROR_MESSAGE_ in t_dict:
             logging.error(f"Error: {t_dict[self.ERROR_MESSAGE_]}")
             return None, None
