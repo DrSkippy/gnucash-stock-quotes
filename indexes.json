@@ -2,7 +2,7 @@
   "asset_indexes": [
     {
       "NAME": "equal_weight_price_index",
-      "CREATED_DATE": "2024-09-25",
+      "CREATED_DATE": "2025-01-22",
       "MEMBERS": [
         "FFIV",
         "NET",
@@ -15,7 +15,7 @@
     },
     {
       "NAME": "constant_index",
-      "CREATED_DATE": "2024-09-25",
+      "CREATED_DATE": "2025-01-22",
       "MEMBERS": [
         "FFIV",
         "NET",
@@ -28,7 +28,7 @@
     },
     {
       "NAME": "market_cap_index",
-      "CREATED_DATE": "2024-09-25",
+      "CREATED_DATE": "2025-01-22",
       "MEMBERS": [
         "FFIV",
         "NET",
