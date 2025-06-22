@@ -36,7 +36,8 @@ class PortfolioAnalyzer:
     def __init__(self, portfolio_value=DEFAULT_PORTFOLIO_VALUE):
         self.portfolio_value = portfolio_value
         self.ticker_quotes = TickerQuotes()
-        self.quote_data = self.ticker_quotes.read_quotes()
+        quote_data = self.ticker_quotes.read_quotes()
+        self.quote_data = self.ticker_quotes.make_wide_dataframe(quote_data)
         self.asset_index = AssetIndex(self.quote_data, portfolio_value=self.portfolio_value)
 
     def log_portfolio_value(self, index_name):

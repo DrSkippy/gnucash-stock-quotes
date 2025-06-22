@@ -1,12 +1,11 @@
 #!/usr/bin/env -S poetry run python
 
 import argparse
+import logging
+from logging.config import dictConfig
 
 from alphavantage.quotes import TickerQuotes
 from analyzer.plots import CorrelationsPlotter
-
-import logging
-from logging.config import dictConfig
 
 dictConfig({
     'version': 1,
@@ -24,7 +23,8 @@ dictConfig({
 })
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description='Correlations between two tickers with timeseries plots and correlation plot. Example: poetry run python bin/correlation.py -s "FFIV" "CRWD"')
+    parser = argparse.ArgumentParser(
+        description='Correlations between two tickers with timeseries plots and correlation plot. Example: poetry run python bin/correlation.py -s "FFIV" "CRWD"')
     parser.add_argument('-s', '--security',
                         action='append',
                         nargs="+",

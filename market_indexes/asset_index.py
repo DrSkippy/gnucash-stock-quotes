@@ -58,10 +58,7 @@ class AssetIndex:
 
     def _prepare_dataframe(self, dfs: pd.DataFrame) -> pd.DataFrame:
         """Prepare and clean the price data DataFrame."""
-        df = dfs[["date", "symbol", "close"]].pivot_table(
-            "close", index="date", columns="symbol"
-        )
-        df = df[self.symbols_list]
+        df = dfs[self.symbols_list]
         df.dropna(axis=1, how="all", inplace=True)
         logging.info(f"DataFrame stats:\n{df.describe()}")
         return df
