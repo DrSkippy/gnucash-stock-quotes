@@ -1,7 +1,8 @@
 {
   "asset_indexes": [
     {
-      "NAME": "equal_weight_price_index",
+      "NAME": "equal_weight_price_index_app_delivery",
+      "TYPE": "EQUAL_WEIGHT",
       "CREATED_DATE": "2025-01-22",
       "MEMBERS": [
         "FFIV",
@@ -14,8 +15,9 @@
       ]
     },
     {
-      "NAME": "constant_index",
+      "NAME": "constant_index_app_delivery",
       "CREATED_DATE": "2025-01-22",
+      "TYPE": "CONSTANT",
       "MEMBERS": [
         "FFIV",
         "NET",
@@ -27,8 +29,9 @@
       ]
     },
     {
-      "NAME": "market_cap_index",
+      "NAME": "market_cap_index_app_delivery",
       "CREATED_DATE": "2025-01-22",
+      "TYPE": "MARKET_CAP",
       "MEMBERS": [
         "FFIV",
         "NET",
@@ -51,6 +54,7 @@
     {
       "NAME": "equal_weight_price_index_quantum",
       "CREATED_DATE": "2025-01-25",
+      "TYPE": "EQUAL_WEIGHT",
       "MEMBERS": [
         "FORM",
         "QBTS",
@@ -62,6 +66,7 @@
     {
       "NAME": "constant_index_quantum",
       "CREATED_DATE": "2025-01-25",
+      "TYPE": "CONSTANT",
       "MEMBERS": [
         "FORM",
         "QBTS",
@@ -73,6 +78,7 @@
     {
       "NAME": "market_cap_index_quantum",
       "CREATED_DATE": "2025-01-25",
+      "TYPE": "MARKET_CAP",
       "MEMBERS": [
         "QBTS",
         "IONQ",

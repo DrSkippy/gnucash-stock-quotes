@@ -24,6 +24,14 @@ dictConfig({
 FMT = "%Y-%m-%d"
 
 if __name__ == "__main__":
+    """
+    Script:
+    - Uses the class to fetch financial data (stocks/crypto) `TickerQuotes`
+    - The data is fetched from Alpha Vantage (a financial data API)
+    - Saves the results in two places:
+        1. JSON file (default: ) `./data/quotes.json`
+        2. A database (through class) `QuoteDatabase`
+    """
     tq = TickerQuotes()
-    res = tq.fetch_quotes()  # fetch the quotes from alphavantage
+    res =  tq.fetch_quotes()  # fetch the quotes from alphavantage
     tq.save_quotes(res)  # save quotes json
