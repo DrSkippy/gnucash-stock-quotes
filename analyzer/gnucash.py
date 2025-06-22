@@ -13,18 +13,15 @@ class Gnucash:
             prices_file: Path to save the processed data
         """
         self.prices_file = prices_file
-        self.dataframes = dataframes
+        self.dataframe = dataframes
 
     def process_quotes(self) -> None:
         """Process and save the quotes data."""
-        plot_stock_prices(self.dataframes)
+        plot_stock_prices(self.dataframe)
         self.save_gnucash_quotes()
 
     def save_gnucash_quotes(self) -> None:
         """Save processed quotes to CSV file."""
-        df_out = self._concatenate_dataframes()
-        df_out.to_csv(self.prices_file, header=False)
+        self.dataframe.to_csv(self.prices_file, header=False)
 
-    def _concatenate_dataframes(self) -> pd.DataFrame:
-        """Combine multiple dataframes if needed."""
-        return pd.concat(self.dataframes) if isinstance(self.dataframes, list) else self.dataframes
+

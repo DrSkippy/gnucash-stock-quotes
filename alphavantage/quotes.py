@@ -2,15 +2,14 @@
 
 import json
 import logging
-import time
-
 import pandas as pd
 import requests
+import time
+
 from alphavantage.db_utils import QuoteDatabase
 
 
 class TickerQuotes:
-  
     HIGH_LOW_CLOSE_VOLUME_ = ["open", "high", "low", "close", "volume"]
     TAG_STOCKS_ = "2. Symbol"
     TAG_CRYPTO_ = "2. Digital Currency Code"
@@ -104,9 +103,9 @@ class TickerQuotes:
         with open(filename, "w") as fout:
             logging.info("writing {} records...".format(len(results)))
             fout.write(json.dumps(results))
-        
+
         # Save to database
-        dfs = self.make_dataframes(results)
+        dfs = self.make_dataframes_list(results)
         for df in dfs:
             self.db.save_quotes(df)
 
@@ -117,26 +116,50 @@ class TickerQuotes:
             with open(filename, "r") as fin:
                 results = json.load(fin)
             logging.info("read {} records...".format(len(results)))
-            return self.make_dataframes(results)
+            return self.make_dataframes_list(results)
         else:
             # Use database for filtered queries
             return self.db.read_quotes(start_date, end_date, symbols)
 
-    def make_dataframes(self, results):
-        dfs = []
+    def make_dataframes_list(self, results):
+        """
+        Process JSON records from fetch_quotes and convert to DataFrames.
+        :param results: List of JSON records
+        :return: List of data frames
+        """
+        df_list = []
         for q in results:
             df, symbol = self._process_record(q)
             if df is None:
-                logging.error(f"Error skipping processing record for {q.get(self.KEY_META_DATA_, {}).get(self.TAG_STOCKS_, 'Unknown')} due to error. See logs for details.")
+                logging.error(
+                    f"Error skipping processing record for {q.get(self.KEY_META_DATA_, {}).get(self.TAG_STOCKS_, 'Unknown')} due to error. See logs for details.")
                 continue
             df = df.sort_index()
-            dfs.append(df[["namespace", "symbol", "close", "currency"]][(df.index > '2016-01-01')])
-        return dfs
+            df_list.append(df[["namespace", "symbol", "close", "currency"]][(df.index > '2016-01-01')])
+        return df_list
+
+    def make_wide_dataframe(self, dfs):
+        """
+        Convert DataFrame to wide format with dates as index and symbols as columns.
+        :param df: DataFrame with 'date', 'symbol', 'close' columns
+        :return: Wide-format DataFrame
+        """
+        df = dfs[["date", "symbol", "close"]].pivot_table(
+            "close", index="date", columns="symbol"
+        )
+        df.dropna(axis=1, how="all", inplace=True)
+        logging.info(f"DataFrame stats:\n{df.describe()}")
+        return df
+
+    def concatenate_dataframes(self, df_list) -> pd.DataFrame:
+        """Combine multiple dataframes if needed."""
+        return pd.concat(df_list) if isinstance(df_list, list) else df_list
 
     def __del__(self):
         """Cleanup database connection"""
         if hasattr(self, 'db'):
             self.db.close()
+
 
 if __name__ == "__main__":
     from logging.config import dictConfig
@@ -158,10 +181,10 @@ if __name__ == "__main__":
             'handlers': ['console']
         }
     })
-    
+
     logging.info("starting")
     tq = TickerQuotes()
     results = tq.fetch_quotes()
     tq.save_quotes(results)
-    dfs = tq.make_dataframes(results)
+    dfs = tq.make_dataframes_list(results)
     logging.info(dfs)

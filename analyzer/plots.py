@@ -1,8 +1,8 @@
 import logging
-from typing import List, Optional, Union
 import pandas as pd
 from matplotlib import pyplot as plt
 from matplotlib.backends.backend_pdf import PdfPages
+from typing import List, Optional, Union
 
 # Constants
 QUOTES_PDF_PATH = "./data/quotes.pdf"
@@ -25,14 +25,7 @@ def plot_stock_prices(dataframes: pd.DataFrame,
         logging.info(f"Plotting {len(dataframes)} dataframes")
         for symbol in symbols:
             df = dataframes[dataframes.symbol == symbol]
-            logging.info(f"Plotting symbol={symbol} len={len(df.close)}")
-            fig = df.plot(
-                x="date",
-                y="close",
-                figsize=PLOT_FIGSIZE_SINGLE,
-                title=f"ticker={symbol}"
-            ).get_figure()
-            pdf.savefig(fig)
+            CorrelationsPlotter._plot_single_ticker(df, symbol, pdf)
         plt.close()
 
 
@@ -64,6 +57,7 @@ class CorrelationsPlotter:
     def _get_ticker_data(self, ticker: str) -> pd.DataFrame:
         return self.dataframes[self.dataframes.symbol == ticker]
 
+    @classmethod
     def _plot_single_ticker(self, df: pd.DataFrame, ticker: str, pdf: PdfPages) -> None:
         logging.info(f"Plotting symbol={ticker} len={len(df.close)}")
         fig = df.plot(
