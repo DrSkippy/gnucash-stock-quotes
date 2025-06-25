@@ -53,7 +53,7 @@
     },
     {
       "NAME": "equal_weight_price_index_quantum",
-      "CREATED_DATE": "2025-01-25",
+      "CREATED_DATE": "2025-01-28",
       "TYPE": "EQUAL_WEIGHT",
       "MEMBERS": [
         "FORM",
@@ -65,7 +65,7 @@
     },
     {
       "NAME": "constant_index_quantum",
-      "CREATED_DATE": "2025-01-25",
+      "CREATED_DATE": "2025-01-28",
       "TYPE": "CONSTANT",
       "MEMBERS": [
         "FORM",
@@ -77,7 +77,7 @@
     },
     {
       "NAME": "market_cap_index_quantum",
-      "CREATED_DATE": "2025-01-25",
+      "CREATED_DATE": "2025-01-28",
       "TYPE": "MARKET_CAP",
       "MEMBERS": [
         "QBTS",

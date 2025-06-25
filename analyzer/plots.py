@@ -1,8 +1,9 @@
 import logging
+from typing import List, Optional
+
 import pandas as pd
 from matplotlib import pyplot as plt
 from matplotlib.backends.backend_pdf import PdfPages
-from typing import List, Optional, Union
 
 # Constants
 QUOTES_PDF_PATH = "./data/quotes.pdf"
@@ -66,6 +67,7 @@ class CorrelationsPlotter:
         data in wide format.
     :type dataframes: pd.DataFrame
     """
+
     def __init__(self, dataframes: pd.DataFrame):
         """
         This class initializes an instance with a given pandas DataFrame, automatically resetting the index
@@ -79,7 +81,7 @@ class CorrelationsPlotter:
         :type dataframes: pd.DataFrame
         """
         self.dataframes = dataframes.reset_index(drop=True)
-        print(self.dataframes.info())
+        logging.info(self.dataframes.info())
 
     def plot_correlation(self,
                          ticker1: str,
@@ -100,45 +102,54 @@ class CorrelationsPlotter:
         :type filename: str, optional
         :return: None
         """
-        df_type = "deep" # vs wide
-        if ticker1 not in self.dataframes.symbol.unique():
-            if ticker1 not in self.dataframes.columns:
+        df_type = None  # deep vs wide
+        if ticker1 not in self.dataframes.columns:
+            if ticker1 not in self.dataframes.symbol.unique():
                 raise ValueError(f"Ticker {ticker1} not found in dataframes.")
             else:
-                df_type = "wide"
+                if ticker2 not in self.dataframes.symbol.unique():
+                    raise ValueError(f"Ticker {ticker2} not found in dataframes.")
+                else:
+                    df_type = "deep"
         else:
-            df_type = "deep"
-        if ticker2 not in self.dataframes.symbol.unique():
             if ticker2 not in self.dataframes.columns:
                 raise ValueError(f"Ticker {ticker2} not found in dataframes.")
-            else:
-                df_type = "wide"
+            df_type = "wide"
 
         with PdfPages(filename) as pdf:
             logging.info(f"Plotting {ticker1} vs {ticker2} dataframes")
             if df_type == "deep":
                 # Plot individual stock prices
-                df1 = self._get_ticker_data(ticker1)
-                df2 = self._get_ticker_data(ticker2)
-                self._plot_single_ticker(df1, ticker1, pdf)
-                self._plot_single_ticker(df2, ticker2, pdf)
-            else: # "wide"
+                df1 = self._get_deep_ticker_data(ticker1)
+                df2 = self._get_deep_ticker_data(ticker2)
+            else:  # "wide"
                 # Plot wide format dataframes
-                df1 = self.dataframes[[ticker1, "date"]].rename(columns={ticker1: "close"})
-                df2 = self.dataframes[[ticker2, "date"]].rename(columns={ticker2: "close"})
-                df1["symbol"] = ticker1
-                df2["symbol"] = ticker2
-                df1.set_index("date", inplace=True)
-                df2.set_index("date", inplace=True)
-                self._plot_single_ticker(df1, ticker1, pdf)
-                self._plot_single_ticker(df2, ticker2, pdf)
+                df1 = self._get_wide_ticker_data(ticker1)
+                df2 = self._get_wide_ticker_data(ticker2)
+            df1.dropna(inplace=True)
+            df2.dropna(inplace=True)
+            self._plot_single_ticker(df1, ticker1, pdf)
+            self._plot_single_ticker(df2, ticker2, pdf)
             # Plot correlation
             merged_df = self._prepare_correlation_data(df1, df2, ticker1, ticker2)
             self._plot_correlation_scatter(merged_df, ticker1, ticker2, pdf)
 
             plt.close()
 
-    def _get_ticker_data(self, ticker: str) -> pd.DataFrame:
+    def _get_wide_ticker_data(self, ticker: str) -> pd.DataFrame:
+        """
+        Prepares and returns a DataFrame for a specific ticker in wide format.
+        :param ticker:
+        :return:
+        """
+        df = self.dataframes[[ticker]].reset_index(inplace=False).rename(
+            columns={"index": "date", ticker: "close"})
+        df["symbol"] = ticker
+        df["date"] = pd.to_datetime(df["date"])
+        return df
+
+
+    def _get_deep_ticker_data(self, ticker: str) -> pd.DataFrame:
         """
         Fetches the data for a specific stock ticker from the preloaded
         dataframes.

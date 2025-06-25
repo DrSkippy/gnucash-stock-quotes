@@ -7,7 +7,7 @@ from logging.config import dictConfig
 from alphavantage.quotes import TickerQuotes
 from analyzer.gnucash import Gnucash
 from analyzer.plots import CorrelationsPlotter
-from market_indexes.asset_index import AssetIndex
+from market_indexes.portfolio import PortfolioAnalyzer
 
 dictConfig({
     'version': 1,
@@ -28,67 +28,6 @@ dictConfig({
 })
 
 FMT = "%Y-%m-%d"
-
-
-class PortfolioAnalyzer:
-    DEFAULT_PORTFOLIO_VALUE = 10000
-
-    def __init__(self, portfolio_value=DEFAULT_PORTFOLIO_VALUE):
-        """
-        Initializes a new instance of the class responsible for managing portfolio value and financial
-        quote data. This class sets up the financial data structures required to handle wide-format
-        quote data and asset indexing based on the provided portfolio value or the default portfolio
-        value.
-
-        :param portfolio_value: The initial value of the portfolio used for calculations and asset
-            indexing. If not explicitly provided, a default is used.
-        :type portfolio_value: float
-        """
-        self.portfolio_value = portfolio_value
-        self.ticker_quotes = TickerQuotes()
-        quote_data = self.ticker_quotes.read_quotes()
-        self.quote_data = self.ticker_quotes.make_wide_dataframe(quote_data)
-        self.asset_index = AssetIndex(self.quote_data, portfolio_value=self.portfolio_value)
-
-    def log_portfolio_value(self, index_name):
-        """
-        Logs the portfolio value for the given index and returns the value.
-
-        The method retrieves the portfolio value associated with the provided index
-        name from the asset index. It then logs the value and returns the retrieved
-        portfolio value.
-
-        :param index_name: Name of the index whose portfolio value is to be logged.
-                           Used to identify the portfolio within the asset index.
-
-        :return: The retrieved portfolio value corresponding to the provided index name.
-        :rtype: float | int
-        """
-        portfolio_value = self.asset_index.get_portfolio(index_name)
-        logging.info(f"{index_name}: {portfolio_value}")
-        return portfolio_value
-
-    def analyze_and_plot(self, index_name, comparison_portfolio, output_path):
-        """
-        Analyzes the comparison between a specified index and a given portfolio,
-        then generates and saves the corresponding plot to the output path. This
-        function utilizes the asset_index attribute to retrieve the necessary data
-        and perform the plotting.
-
-        :param index_name: Name of the index to be analyzed.
-        :type index_name: str
-        :param comparison_portfolio: The portfolio to compare against the index.
-        :type comparison_portfolio: str
-        :param output_path: File path where the output plot will be saved.
-        :type output_path: str
-        :return: None
-        """
-        comparison_data = self.asset_index.get_comparison_dataframe(
-            index_name,
-            comparison_portfolio
-        )
-        self.asset_index.plot_quotes(comparison_data, output_path)
-
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
@@ -158,4 +97,10 @@ if __name__ == "__main__":
                 index_name,
                 comparison_portfolio=cp,
                 output_path=f"./data/{index_name}_comparison.pdf"
+            )
+        if args['security'] is not None and len(args['security'][0]) == 2:
+            symbols = args['security'][0] if args['security'] is not None else []
+            analyzer.correlations_plot(
+                symbols=symbols,
+                start_date=args['start_date']
             )
