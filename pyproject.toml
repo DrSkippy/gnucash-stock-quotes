@@ -6,7 +6,7 @@ authors = [
     {name = "Scott Hendrickson",email = "scott@drskippy.net"}
 ]
 readme = "README.md"
-requires-python = ">=3.10"
+requires-python = ">=3.12"
 dependencies = [
     "pandas (>=2.3.0,<3.0.0)",
     "matplotlib (>=3.10.3,<4.0.0)",
