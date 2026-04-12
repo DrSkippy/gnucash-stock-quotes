@@ -103,15 +103,16 @@ class CorrelationsPlotter:
         :return: None
         """
         df_type = None  # deep vs wide
-        if ticker1 not in self.dataframes.columns:
+        is_deep = "symbol" in self.dataframes.columns
+        if is_deep:
             if ticker1 not in self.dataframes.symbol.unique():
                 raise ValueError(f"Ticker {ticker1} not found in dataframes.")
-            else:
-                if ticker2 not in self.dataframes.symbol.unique():
-                    raise ValueError(f"Ticker {ticker2} not found in dataframes.")
-                else:
-                    df_type = "deep"
+            if ticker2 not in self.dataframes.symbol.unique():
+                raise ValueError(f"Ticker {ticker2} not found in dataframes.")
+            df_type = "deep"
         else:
+            if ticker1 not in self.dataframes.columns:
+                raise ValueError(f"Ticker {ticker1} not found in dataframes.")
             if ticker2 not in self.dataframes.columns:
                 raise ValueError(f"Ticker {ticker2} not found in dataframes.")
             df_type = "wide"

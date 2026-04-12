@@ -16,15 +16,17 @@ class AssetIndex:
     COMPARE_INDEX_FILE = "./data/compare_index.pdf"
 
 
-    def __init__(self, dfs: pd.DataFrame, portfolio_value: float = 10000, filename: str = INDEX_FILE):
+    def __init__(self, dfs: pd.DataFrame, portfolio_value: float = 10000,
+                 filename: str = INDEX_FILE, db=None):
         """
         Represents a class that initializes and manages data analysis and calculations
         for financial portfolios.
 
         This class processes dataframes containing financial data, loads configuration
-        from a provided filename, and performs various setup operations such as
-        verifying data completeness and initializing portfolios. It calculates
-        financial indexes based on the provided data and configuration.
+        from a provided filename or the database, and performs various setup operations
+        such as verifying data completeness and initializing portfolios. It calculates
+        financial indexes based on the provided data and configuration, and optionally
+        persists weights and history to the database.
 
         :param dfs: Dataframe containing financial data for analysis and portfolio
             management.
@@ -35,9 +37,13 @@ class AssetIndex:
         :param filename: The name of the file where the configuration is stored. This
             file specifies the indexes and symbols to be analyzed and managed.
         :type filename: str
+        :param db: Optional QuoteDatabase instance. When provided, index definitions
+            are loaded from and results are saved to the database.
+        :type db: Optional[QuoteDatabase]
         """
         self.portfolio_value = portfolio_value
         self.portfolios: Dict[str, Dict[str, float]] = {}
+        self.db = db
 
         self.config = self._load_config(filename)
         self.indexes_list = self.config["asset_indexes"]
@@ -50,17 +56,28 @@ class AssetIndex:
 
     def _load_config(self, filename: str) -> dict:
         """
-        Loads configuration data from a JSON file.
+        Loads configuration data from the database if available, falling back to a
+        JSON file.
 
-        This method reads a JSON file from the specified filename, parses its content,
-        and logs the number of records read from the file. The parsed JSON content is
-        returned as a dictionary.
+        When a database connection is provided, index definitions are read from the
+        `asset_indexes` / `index_members` tables. The JSON file is used as a fallback
+        (e.g. for bootstrapping before definitions have been seeded to the DB).
 
-        :param filename: Name of the JSON file to load configuration data from
+        :param filename: Path to the JSON fallback configuration file.
         :type filename: str
-        :return: A dictionary containing the parsed configuration data
+        :return: A dictionary containing the parsed configuration data.
         :rtype: dict
         """
+        if self.db is not None:
+            try:
+                config = self.db.read_index_definitions()
+                if config.get("asset_indexes"):
+                    logging.info(f"Loaded {len(config['asset_indexes'])} index definitions from database")
+                    return config
+                logging.info("No index definitions in database; falling back to JSON file")
+            except Exception as e:
+                logging.warning(f"Could not read index definitions from database ({e}); falling back to JSON file")
+
         with open(filename, "r") as fin:
             config = json.load(fin)
             logging.info(f"Read {len(config)} records from {filename}")
@@ -141,6 +158,12 @@ class AssetIndex:
                 start_date = idx.get("CREATED_DATE", self.dfs.index.min())
                 self.portfolios[index_name] = calculator(idx, start_date)
                 logging.info(f"Initialized {index_name} portfolio")
+
+                if self.db is not None:
+                    try:
+                        self.db.save_index_weights(index_name, self.portfolios[index_name])
+                    except Exception as e:
+                        logging.warning(f"Could not save weights for {index_name}: {e}")
 
     def _calculate_equal_weight_portfolio(self, index_config: dict, start_date: str) -> Dict[str, float]:
         """
@@ -271,6 +294,12 @@ class AssetIndex:
             self.dfs[index_name] = sum(self.dfs[symbol] * shares
                                        for symbol, shares in portfolio.items())
             logging.info(f"Calculated {index_name} index values")
+
+            if self.db is not None:
+                try:
+                    self.db.save_index_history(index_name, self.dfs[index_name])
+                except Exception as e:
+                    logging.warning(f"Could not save history for {index_name}: {e}")
 
     def get_comparison_dataframe(self, index_name: str,
                                  comparison_portfolio: Dict[str, float]) -> pd.DataFrame:

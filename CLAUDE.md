@@ -1,133 +1,111 @@
-# CLAUDE.md
+# CLAUDE.md — gnucash-stock-quotes
 
 ## Project Layout
 
 ```
-personal-book-records/
-├── book-records-react/     # React/Vite/TypeScript SPA frontend (v0.1.0)
-├── tools/                  # Python backend (API, MCP, CLI)
-│   ├── book_service/
-│   │   ├── books/          # Flask REST API (port 8084, v0.18.0)
-│   │   ├── booksmcp/       # FastMCP server (port 3005)
-│   │   ├── booksdb/        # DB layer (api_util.py, config.py)
-│   │   ├── config/         # configuration.json (gitignored)
-│   │   └── test_books/     # Integration tests
-│   ├── bookdbtool/         # CLI REPL tools
-│   ├── test/               # Unit/mock tests
-│   ├── Makefile            # All build/run/test targets
-│   └── pyproject.toml      # Poetry project
-└── books.drskippy.app      # nginx site config (deploy to /etc/nginx/sites-available/)
+gnucash-stock-quotes/
+├── alphavantage/           # Alpha Vantage API client + DB utilities
+│   ├── db_utils.py         # QuoteDatabase: quotes + index tables (PostgreSQL)
+│   └── quotes.py           # TickerQuotes: fetch/save/read quote data
+├── market_indexes/         # Index calculation engine
+│   ├── asset_index.py      # AssetIndex: portfolio weighting + time-series calc
+│   └── portfolio.py        # PortfolioAnalyzer: wrapper for CLI usage
+├── bin/
+│   ├── daily_fetch.py      # Cron entry point: fetch quotes and save to DB
+│   └── shak.py             # CLI: analysis, index plots, GnuCash export
+├── data/                   # Output files (PDFs, CSVs, JSON cache)
+├── indexes.json            # Index definitions (bootstrap / fallback)
+├── tickers.json            # API key, DB config, ticker lists (gitignored in practice)
+├── pyproject.toml          # Poetry project
+└── runner.sh               # Shell wrapper (sets PYTHONPATH, invokes Poetry)
 ```
 
-## Backend (tools/)
+## Running
 
 **All Python commands use Poetry:**
 ```bash
-cd tools
-poetry run python ...
-poetry run pytest ...
+poetry run python bin/daily_fetch.py      # fetch & persist today's quotes
+poetry run python bin/shak.py index       # run index analysis
+poetry run python bin/shak.py --help      # full CLI options
 ```
 
-**Key files:**
-- `book_service/books/api.py` — Flask app entry point
-- `book_service/booksdb/api_util.py` — DB utilities, imported via `from booksdb.api_util import *`
-- `book_service/booksdb/config.py` — DB config loader
-- `book_service/booksmcp/server.py` — MCP server entry point
+## Key Files
 
-**Critical pattern:** `__all__` in `api_util.py` must include `pymysql` and `datetime` — these are re-exported for use in other modules that do `from booksdb.api_util import *`.
+- `alphavantage/db_utils.py` — `QuoteDatabase` class; all DB logic (quotes, index definitions, weights, history)
+- `alphavantage/quotes.py` — `TickerQuotes`; wraps Alpha Vantage API + QuoteDatabase
+- `market_indexes/asset_index.py` — `AssetIndex`; portfolio weighting, index time-series calculation
+- `market_indexes/portfolio.py` — `PortfolioAnalyzer`; orchestrates AssetIndex for CLI
+- `indexes.json` — index definitions (used as fallback when DB has no definitions)
+- `tickers.json` — runtime config (API key, DB connection, ticker symbols)
 
-**Docker builds run from `tools/` (repo root for book-service):**
-```bash
-cd tools
-make build-test          # build test images
-make run-test-all        # start containers (book-service:9999, mcp:3005)
-make test                # run integration tests against containers
-make stop-test-all       # tear down
-make test-bookdbtool     # unit tests (no Docker)
+## Configuration (`tickers.json`)
+
+```json
+{
+  "configuration": {
+    "key": "<alpha_vantage_api_key>",
+    "url_base": { ... },
+    "database": {
+      "host": "192.168.1.90",
+      "port": 5434,
+      "user": "scott",
+      "password": "...",
+      "database": "stock_quotes"
+    }
+  },
+  "tickers": {
+    "DIGITAL_CURRENCY_DAILY": ["GTC", "ETH", "XRP"],
+    "TIME_SERIES_DAILY": ["QBTS", "IONQ", ...]
+  }
+}
 ```
 
-**Docker conventions:**
-- Book service Dockerfile: `WORKDIR=/app`, `PYTHONPATH=/app`
-- `books/` package copied to `/app/books/`; `api.ini` uses `module = books.api`
-- Container names use IMAGE vars (no `:latest`); image tags use TAG vars
-- On `lambda-dual` host, images are pushed to local registry `localhost:5000`
+## Database (PostgreSQL)
 
-**Auth:** All API requests require `x-api-key` header.
+- **Host:** `192.168.1.90:5434`
+- **Database:** `stock_quotes`
+- **Driver:** `psycopg2-binary`
 
-**Carousel adjacent API behavior:**
-- `GET /complete_record/<id>/next` — returns next book by ID; returns `{}` at end of collection (no forward wrap)
-- `GET /complete_record/<id>/prev` — returns previous book by ID; wraps to `max(BookId)` at start of collection
-- `GET /complete_records_window/<id>/<n>` — returns n books centered on id; fills deficit from opposite side (no ring-wrap to far end of collection)
+### Tables
 
-## Frontend (book-records-react/)
+| Table | Description |
+|---|---|
+| `quotes` | Daily close prices; range-partitioned by year (quotes_2016 … quotes_future) |
+| `asset_indexes` | Index definitions (name, type, created_date, portfolio_value) |
+| `index_members` | Member symbols per index with optional market_cap weight |
+| `index_weights` | Computed share counts per symbol per index |
+| `index_history` | Computed time-series index values; range-partitioned by year |
 
-**Stack:** Vite + React 19 + TypeScript + Tailwind CSS + TanStack Query + React Hook Form + Zod + Recharts
+Tables are created automatically on first run via `QuoteDatabase.create_tables()`.
 
-**Dev:**
-```bash
-cd book-records-react
-npm run dev       # dev server
-npm run build     # production build → dist/
-npm run lint
+### Index types
+
+- `EQUAL_WEIGHT` — equal dollar allocation across members at inception
+- `CONSTANT` — price-weighted (constant shares per member)
+- `MARKET_CAP` — market-cap weighted at inception
+
+### Seeding index definitions
+
+On first use (empty DB), `AssetIndex` falls back to `indexes.json`. To persist definitions to DB for future reads, call `db.save_index_definition(index_cfg)` for each entry, or add a seed step to `shak.py`.
+
+## Index Definition Format (`indexes.json`)
+
+```json
+{
+  "asset_indexes": [
+    {
+      "NAME": "equal_weight_price_index_app_delivery",
+      "TYPE": "EQUAL_WEIGHT",
+      "CREATED_DATE": "2025-01-22",
+      "MEMBERS": ["FFIV", "NET", "SNOW", "FTNT", "ATEN", "AKAM", "CRWD"]
+    },
+    {
+      "NAME": "market_cap_index_app_delivery",
+      "TYPE": "MARKET_CAP",
+      "CREATED_DATE": "2025-01-22",
+      "MEMBERS": ["FFIV", "NET", "SNOW", "FTNT", "ATEN", "AKAM", "CRWD"],
+      "MARKET_CAP": [12.802, 28.5, 37.75, 58.6, 1.01, 15.098, 70.22]
+    }
+  ]
+}
 ```
-
-**Config via `.env.local` (gitignored):**
-```
-VITE_API_BASE_URL=
-VITE_API_KEY=
-VITE_RESOURCE_BASE_URL=
-VITE_OLLAMA_BASE_URL=
-VITE_OLLAMA_MODEL=
-VITE_OLLAMA_API_KEY=
-```
-
-**Structure:**
-- `src/api/` — axios API clients (`client.ts` wraps all book-service calls, `ollama.ts` handles AI chat)
-- `src/hooks/` — TanStack Query hooks, one per resource type
-- `src/pages/` — route-level page components
-- `src/components/` — shared UI components
-- `src/types/index.ts` — all shared TypeScript types
-- `src/lib/` — constants, date utils, validation schemas
-- `src/vite-env.d.ts` — TypeScript declarations for Vite globals (`__APP_VERSION__`)
-
-**UI version:** Injected from `package.json` at build time via `define: { __APP_VERSION__ }` in `vite.config.ts`. Displayed in the nav bar alongside the API version.
-
-**Location / CoverType rule:** When `CoverType` is `"Digital"`, the location dropdown in `BookForm` shows only `"DOWNLOAD"`. All other cover types exclude `"DOWNLOAD"`. This is enforced in `BookForm.tsx` via `watch('CoverType')`.
-
-**Notes display:** All read-only note fields (`BookNote`, `ReadNote`) use `whitespace-pre-line` so `\n` characters render as line breaks. The `BookNote` textarea inputs handle newlines natively.
-
-## AI Chat
-
-The AI Chat page (`/ai-chat`) uses an OpenAI-compatible `/v1/chat/completions` endpoint with tool-calling support.
-
-**Local LM servers:**
-| Server | URL | Auth |
-|---|---|---|
-| Primary (LM Studio) | `http://192.168.1.91:1234` | Bearer token required |
-| Secondary | `http://192.168.1.91:5434` | — |
-
-**Current model:** `openai/gpt-oss-20b`
-
-**Auth:** Bearer token set via `VITE_OLLAMA_API_KEY` in `.env.local`. Applied as `Authorization: Bearer <token>` header in `src/api/ollama.ts`.
-
-**Tools available to the model (9):** `search_books`, `get_book_details`, `get_recent_books`, `get_books_read_by_year`, `get_reading_summary`, `get_tags_for_book`, `search_books_by_tag`, `get_tag_counts`, `get_reading_estimates`.
-
-**Conversation loop:** Up to 10 tool-call iterations per user message. History maintained in `ollamaHistoryRef` for the session; reset on "Clear".
-
-## Database
-
-- **Database:** `book_collection` (MySQL)
-- **Tables:** `books`, `books_read`, `tag_labels`, `books_tags`, `complete_date_estimates`, `daily_page_records`, `images`
-- **Key columns:** `BookId`, `IsbnNumber`, `IsbnNumber13`, `BookNote`, `TagId`, `RecordId`, `Page`, `ImageId`, `Name`, `Url`, `ImageType`, `LastUpdate`
-- CASCADE foreign keys handle child record deletion when a book is deleted
-- `Category` column was dropped in the Feb 2026 migration
-- Valid locations: `Main Collection`, `Bedroom`, `Storage`, `Oversized`, `Pets`, `Woodwork`, `Reference`, `Birding`, `DOWNLOAD`
-
-## nginx Deployment
-
-```bash
-sudo cp books.drskippy.app /etc/nginx/sites-available/books.drskippy.app
-sudo nginx -t && sudo systemctl reload nginx
-```
-
-The React `dist/` must be built first (`npm run build` inside `book-records-react/`).
