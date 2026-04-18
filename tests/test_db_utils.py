@@ -306,6 +306,20 @@ class TestReadQuotes:
         assert "symbol in" in sql
 
     @patch("alphavantage.db_utils.psycopg2")
+    def test_read_quotes_close_column_is_float(self, mock_psycopg2):
+        from decimal import Decimal
+        db, mock_conn = make_db(mock_psycopg2)
+        mock_cursor = MagicMock()
+        mock_cursor.fetchall.return_value = [
+            (date(2025, 1, 22), "AAPL", "NASDAQ", Decimal("150.123456"), "USD"),
+        ]
+        mock_conn.cursor.return_value = mock_cursor
+
+        result = db.read_quotes()
+
+        assert result["close"].dtype == float
+
+    @patch("alphavantage.db_utils.psycopg2")
     def test_read_quotes_date_column_is_datetime(self, mock_psycopg2):
         db, mock_conn = make_db(mock_psycopg2)
         mock_cursor = MagicMock()

@@ -244,6 +244,7 @@ class QuoteDatabase:
             rows = cursor.fetchall()
             df = pd.DataFrame(rows, columns=["date", "symbol", "namespace", "close", "currency"])
             df["date"] = pd.to_datetime(df["date"])
+            df["close"] = df["close"].astype(float)
             logging.info(f"Successfully read {len(df)} quotes from database")
             return df
         except Error as e:
