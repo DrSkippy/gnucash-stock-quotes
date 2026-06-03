@@ -91,6 +91,43 @@
         3.6,
         2.7
       ]
+    },
+    {
+      "NAME": "market_cap_index_energy",
+      "CREATED_DATE": "2026-06-03",
+      "TYPE": "MARKET_CAP",
+      "MEMBERS": [
+        "BE",
+        "FRVO",
+        "GEV",
+        "NXT",
+        "FLNC",
+        "PLUG",
+        "ENVX"
+      ],
+      "MARKET_CAP": [
+        81.73,
+        11.75,
+        257.80,
+        22.29,
+        4.58,
+        5.15,
+        1.80
+      ]
+    },
+    {
+      "NAME": "constant_index_energy",
+      "CREATED_DATE": "2026-06-03",
+      "TYPE": "CONSTANT",
+      "MEMBERS": [
+        "BE",
+        "FRVO",
+        "GEV",
+        "NXT",
+        "FLNC",
+        "PLUG",
+        "ENVX"
+      ]
     }
   ]
 }

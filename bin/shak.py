@@ -1,12 +1,14 @@
 #!/usr/bin/env -S poetry run python
 
 import argparse
+import json
 import logging
 from logging.config import dictConfig
 
 from alphavantage.quotes import TickerQuotes
 from analyzer.gnucash import Gnucash
 from analyzer.plots import CorrelationsPlotter
+from market_indexes.asset_index import AssetIndex
 from market_indexes.portfolio import PortfolioAnalyzer
 
 dictConfig({
@@ -35,8 +37,8 @@ if __name__ == "__main__":
         It allows you to compare two securities, create a gnucash quotes file, or analyze market indexes.
         """)
     parser.add_argument("command",
-                        choices=['compare', 'gnucash', 'index'],
-                        help="Command to execute: 'compare' for comparing securities, 'gnucash' for creating a gnucash quotes file, or 'index' for analyzing market indexes."
+                        choices=['compare', 'gnucash', 'index', 'seed-indexes'],
+                        help="Command to execute: 'compare' for comparing securities, 'gnucash' for creating a gnucash quotes file, 'index' for analyzing market indexes, or 'seed-indexes' to load index definitions from a JSON file into the database."
                         )
     parser.add_argument('-c', '--compare-securities',
                         action='append',
@@ -53,6 +55,9 @@ if __name__ == "__main__":
     parser.add_argument('-s', '--start-date',
                         default=None,
                         help='Start date for the analysis in YYYY-MM-DD format')
+    parser.add_argument('-f', '--file',
+                        default=AssetIndex.INDEX_FILE,
+                        help=f'Path to index definitions JSON file (default: {AssetIndex.INDEX_FILE})')
     parser.add_argument('-p', '--compare-portfolio',
                         action='append',
                         nargs="+",
@@ -104,3 +109,14 @@ if __name__ == "__main__":
                 symbols=symbols,
                 start_date=args['start_date']
             )
+    elif args['command'] == 'seed-indexes':
+        filename = args['file']
+        with open(filename, 'r') as fin:
+            config = json.load(fin)
+        indexes = config.get('asset_indexes', [])
+        logging.info(f"Seeding {len(indexes)} index definitions from {filename}")
+        tq = TickerQuotes()
+        for idx in indexes:
+            tq.db.save_index_definition(idx)
+            logging.info(f"Seeded index: {idx['NAME']}")
+        logging.info("Done seeding index definitions")

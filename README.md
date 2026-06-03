@@ -34,20 +34,22 @@ Tables are created automatically on first run.
 
 ```
 usage: shak.py [-h] [-c SECURITY [SECURITY ...]] [-l] [-i INDEX_NAME]
-               [-s START_DATE] [-p COMP_PORTFOLIO [COMP_PORTFOLIO ...]]
-               {compare,gnucash,index}
+               [-s START_DATE] [-f FILE] [-p COMP_PORTFOLIO [COMP_PORTFOLIO ...]]
+               {compare,gnucash,index,seed-indexes}
 
 positional arguments:
-  {compare,gnucash,index}
-                        compare   — correlation plot for two securities
-                        gnucash   — generate a GnuCash quotes CSV
-                        index     — analyse and plot market indexes
+  {compare,gnucash,index,seed-indexes}
+                        compare       — correlation plot for two securities
+                        gnucash       — generate a GnuCash quotes CSV
+                        index         — analyse and plot market indexes
+                        seed-indexes  — load index definitions from JSON into the database
 
 options:
   -c, --compare-securities   2 security symbols
   -l, --list                 List available securities in the database
   -i, --index-name           Index to analyse (e.g. "equal_weight_price_index_app_delivery")
   -s, --start-date           Start date in YYYY-MM-DD format
+  -f, --file                 Path to index definitions JSON (default: ./indexes.json)
   -p, --compare-portfolio    Comparison portfolio, e.g. "FFIV 0" for default allocation
 ```
 
@@ -62,6 +64,12 @@ options:
 
 # Analyse an index and plot against a benchmark
 ./bin/shak.py index -i equal_weight_price_index_app_delivery -p FFIV 0
+
+# Seed index definitions from indexes.json into the database
+./bin/shak.py seed-indexes
+
+# Seed from a different file
+./bin/shak.py seed-indexes -f /path/to/other_indexes.json
 ```
 
 ---
@@ -83,21 +91,13 @@ The `quotes` and `index_history` tables use **declarative range partitioning by 
 ### Seeding index definitions
 
 On first use with an empty database, `AssetIndex` falls back to `indexes.json`.  
-To persist definitions so they load from the DB on future runs:
+To persist definitions so they load from the DB on future runs — or to push edits to `indexes.json` into the DB — use the `seed-indexes` command:
 
 ```bash
-poetry run python -c "
-import json, sys; sys.path.insert(0, '.')
-from alphavantage.db_utils import QuoteDatabase
-config = json.load(open('tickers.json'))
-db = QuoteDatabase(config)
-db.create_tables()
-for idx in json.load(open('indexes.json'))['asset_indexes']:
-    db.save_index_definition(idx)
-    print('Saved:', idx['NAME'])
-db.close()
-"
+./bin/shak.py seed-indexes
 ```
+
+This is an upsert, so it's safe to run again after adding or editing entries in `indexes.json`.
 
 ---
 

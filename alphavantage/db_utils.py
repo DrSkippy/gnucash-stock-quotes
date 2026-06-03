@@ -378,7 +378,7 @@ class QuoteDatabase:
                 return
             index_id = row[0]
 
-            data = [(index_id, symbol, shares) for symbol, shares in portfolio.items()]
+            data = [(index_id, symbol, float(shares)) for symbol, shares in portfolio.items()]
             psycopg2.extras.execute_values(
                 cursor,
                 """
