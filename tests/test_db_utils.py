@@ -599,4 +599,147 @@ class TestClose:
         db, mock_conn = make_db(mock_psycopg2)
         db.connection = None
 
+
+# ---------------------------------------------------------------------------
+# read_index_history() — missing branches
+# ---------------------------------------------------------------------------
+
+class TestReadIndexHistoryBranches:
+    """Cover the start_date/end_date filter branches and non-empty row return."""
+
+    @patch("alphavantage.db_utils.psycopg2")
+    def test_with_start_date_appends_param(self, mock_psycopg2):
+        db, mock_conn = make_db(mock_psycopg2)
+        mock_cursor = MagicMock()
+        mock_cursor.fetchall.return_value = []
+        mock_conn.cursor.return_value = mock_cursor
+
+        db.read_index_history("my_idx", start_date="2025-01-01")
+
+        executed_query = mock_cursor.execute.call_args[0][0]
+        params = mock_cursor.execute.call_args[0][1]
+        assert "ih.date >= %s" in executed_query
+        assert "2025-01-01" in params
+
+    @patch("alphavantage.db_utils.psycopg2")
+    def test_with_end_date_appends_param(self, mock_psycopg2):
+        db, mock_conn = make_db(mock_psycopg2)
+        mock_cursor = MagicMock()
+        mock_cursor.fetchall.return_value = []
+        mock_conn.cursor.return_value = mock_cursor
+
+        db.read_index_history("my_idx", end_date="2025-12-31")
+
+        executed_query = mock_cursor.execute.call_args[0][0]
+        params = mock_cursor.execute.call_args[0][1]
+        assert "ih.date <= %s" in executed_query
+        assert "2025-12-31" in params
+
+    @patch("alphavantage.db_utils.psycopg2")
+    def test_non_empty_rows_returns_series(self, mock_psycopg2):
+        import datetime
+        db, mock_conn = make_db(mock_psycopg2)
+        mock_cursor = MagicMock()
+        mock_cursor.fetchall.return_value = [
+            (datetime.date(2025, 1, 22), 10000.0),
+            (datetime.date(2025, 1, 23), 10050.0),
+        ]
+        mock_conn.cursor.return_value = mock_cursor
+
+        result = db.read_index_history("my_idx")
+
+        assert len(result) == 2
+        assert result.name == "my_idx"
+        assert abs(result.iloc[0] - 10000.0) < 1e-6
+
+    @patch("alphavantage.db_utils.psycopg2")
+    def test_error_raises(self, mock_psycopg2):
+        import psycopg2 as _psycopg2
+        db, mock_conn = make_db(mock_psycopg2)
+        mock_cursor = MagicMock()
+        mock_cursor.execute.side_effect = _psycopg2.OperationalError("fail")
+        mock_conn.cursor.return_value = mock_cursor
+
+        with pytest.raises(_psycopg2.OperationalError):
+            db.read_index_history("my_idx")
+
+
+# ---------------------------------------------------------------------------
+# Error paths in other methods (except Error blocks)
+# ---------------------------------------------------------------------------
+
+class TestErrorPaths:
+    """Cover the except Error branches that psycopg2.OperationalError triggers."""
+
+    @patch("alphavantage.db_utils.psycopg2")
+    def test_read_quotes_error_raises(self, mock_psycopg2):
+        import psycopg2 as _psycopg2
+        db, mock_conn = make_db(mock_psycopg2)
+        mock_cursor = MagicMock()
+        mock_cursor.execute.side_effect = _psycopg2.OperationalError("fail")
+        mock_conn.cursor.return_value = mock_cursor
+
+        with pytest.raises(_psycopg2.OperationalError):
+            db.read_quotes()
+
+    @patch("alphavantage.db_utils.psycopg2")
+    def test_save_index_definition_error_raises(self, mock_psycopg2):
+        import psycopg2 as _psycopg2
+        db, mock_conn = make_db(mock_psycopg2)
+        mock_cursor = MagicMock()
+        mock_cursor.execute.side_effect = _psycopg2.OperationalError("fail")
+        mock_conn.cursor.return_value = mock_cursor
+
+        with pytest.raises(_psycopg2.OperationalError):
+            db.save_index_definition({"NAME": "x", "TYPE": "EQUAL_WEIGHT",
+                                      "CREATED_DATE": "2025-01-01", "MEMBERS": []})
+
+    @patch("alphavantage.db_utils.psycopg2")
+    def test_read_index_definitions_error_raises(self, mock_psycopg2):
+        import psycopg2 as _psycopg2
+        db, mock_conn = make_db(mock_psycopg2)
+        mock_cursor = MagicMock()
+        mock_cursor.execute.side_effect = _psycopg2.OperationalError("fail")
+        mock_conn.cursor.return_value = mock_cursor
+
+        with pytest.raises(_psycopg2.OperationalError):
+            db.read_index_definitions()
+
+    @patch("alphavantage.db_utils.psycopg2")
+    def test_save_index_weights_error_raises(self, mock_psycopg2):
+        import psycopg2 as _psycopg2
+        db, mock_conn = make_db(mock_psycopg2)
+        mock_cursor = MagicMock()
+        mock_cursor.execute.side_effect = _psycopg2.OperationalError("fail")
+        mock_conn.cursor.return_value = mock_cursor
+
+        with pytest.raises(_psycopg2.OperationalError):
+            db.save_index_weights("my_idx", {"AAPL": 10.0})
+
+    @patch("alphavantage.db_utils.psycopg2")
+    def test_read_index_weights_error_raises(self, mock_psycopg2):
+        import psycopg2 as _psycopg2
+        db, mock_conn = make_db(mock_psycopg2)
+        mock_cursor = MagicMock()
+        mock_cursor.execute.side_effect = _psycopg2.OperationalError("fail")
+        mock_conn.cursor.return_value = mock_cursor
+
+        with pytest.raises(_psycopg2.OperationalError):
+            db.read_index_weights("my_idx")
+
+    @patch("alphavantage.db_utils.psycopg2")
+    def test_save_index_history_error_raises(self, mock_psycopg2):
+        import psycopg2 as _psycopg2
+        import pandas as pd
+        db, mock_conn = make_db(mock_psycopg2)
+        mock_cursor = MagicMock()
+        mock_cursor.fetchone.return_value = (1,)  # SELECT id succeeds
+        mock_conn.cursor.return_value = mock_cursor
+        # INSERT uses execute_values, not cursor.execute
+        mock_psycopg2.extras.execute_values.side_effect = _psycopg2.OperationalError("fail")
+
+        series = pd.Series([10000.0], index=pd.to_datetime(["2025-01-22"]))
+        with pytest.raises(_psycopg2.OperationalError):
+            db.save_index_history("my_idx", series)
+
         db.close()  # should not raise

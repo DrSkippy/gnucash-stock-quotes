@@ -230,3 +230,157 @@ class TestConcatenateDataframes:
         df = pd.DataFrame({"a": [1, 2]})
         result = self.tq.concatenate_dataframes(df)
         assert result is df
+
+
+# ---------------------------------------------------------------------------
+# print_tickers()
+# ---------------------------------------------------------------------------
+
+class TestPrintTickers:
+    def setup_method(self):
+        with patch("alphavantage.db_utils.psycopg2"):
+            with patch("alphavantage.quotes.QuoteDatabase"):
+                with patch("builtins.open", mock_open(read_data=json.dumps(MINIMAL_CONFIG))):
+                    from alphavantage.quotes import TickerQuotes
+                    self.tq = TickerQuotes()
+
+    def test_prints_tickers_header(self, capsys):
+        self.tq.print_tickers()
+        out = capsys.readouterr().out
+        assert "Tickers:" in out
+
+    def test_prints_market_name(self, capsys):
+        self.tq.print_tickers()
+        out = capsys.readouterr().out
+        assert "TIME_SERIES_DAILY" in out
+
+    def test_prints_ticker_symbols(self, capsys):
+        self.tq.print_tickers()
+        out = capsys.readouterr().out
+        assert "AAPL" in out
+
+
+# ---------------------------------------------------------------------------
+# fetch_quotes()
+# ---------------------------------------------------------------------------
+
+class TestFetchQuotes:
+    def setup_method(self):
+        with patch("alphavantage.db_utils.psycopg2"):
+            with patch("alphavantage.quotes.QuoteDatabase"):
+                with patch("builtins.open", mock_open(read_data=json.dumps(MINIMAL_CONFIG))):
+                    from alphavantage.quotes import TickerQuotes
+                    self.tq = TickerQuotes()
+
+    @patch("alphavantage.quotes.requests")
+    def test_returns_list_of_responses(self, mock_requests):
+        mock_resp = MagicMock()
+        mock_resp.json.return_value = {"Meta Data": {}, "Time Series (Daily)": {}}
+        mock_requests.get.return_value = mock_resp
+
+        results = self.tq.fetch_quotes()
+
+        assert isinstance(results, list)
+        total_tickers = sum(len(v) for v in self.tq.tickers.values())
+        assert len(results) == total_tickers
+
+    @patch("alphavantage.quotes.requests")
+    def test_calls_get_for_each_ticker(self, mock_requests):
+        mock_resp = MagicMock()
+        mock_resp.json.return_value = {}
+        mock_requests.get.return_value = mock_resp
+
+        self.tq.fetch_quotes()
+
+        n_tickers = sum(len(v) for v in self.tq.tickers.values())
+        assert mock_requests.get.call_count == n_tickers
+
+
+# ---------------------------------------------------------------------------
+# save_quotes()
+# ---------------------------------------------------------------------------
+
+class TestSaveQuotes:
+    def setup_method(self):
+        with patch("alphavantage.db_utils.psycopg2"):
+            with patch("alphavantage.quotes.QuoteDatabase"):
+                with patch("builtins.open", mock_open(read_data=json.dumps(MINIMAL_CONFIG))):
+                    from alphavantage.quotes import TickerQuotes
+                    self.tq = TickerQuotes()
+
+    def test_writes_json_file(self, tmp_path):
+        path = str(tmp_path / "quotes.json")
+        self.tq.save_quotes([], filename=path)
+        assert (tmp_path / "quotes.json").exists()
+
+    def test_calls_db_save_for_each_df(self, tmp_path):
+        path = str(tmp_path / "quotes.json")
+        raw = [
+            {
+                "Meta Data": {
+                    "2. Symbol": "AAPL",
+                    "1. Information": "Daily",
+                    "3. Last Refreshed": "2025-01-22",
+                    "4. Output Size": "Compact",
+                    "5. Time Zone": "US/Eastern",
+                },
+                "Time Series (Daily)": {
+                    "2025-01-22": {
+                        "1. open": "150", "2. high": "155",
+                        "3. low": "148", "4. close": "152", "5. volume": "1000000",
+                    }
+                },
+            }
+        ]
+        self.tq.save_quotes(raw, filename=path)
+        self.tq.db.save_quotes.assert_called()
+
+
+# ---------------------------------------------------------------------------
+# read_quotes(filename=...)
+# ---------------------------------------------------------------------------
+
+class TestReadQuotesFromFile:
+    def setup_method(self):
+        with patch("alphavantage.db_utils.psycopg2"):
+            with patch("alphavantage.quotes.QuoteDatabase"):
+                with patch("builtins.open", mock_open(read_data=json.dumps(MINIMAL_CONFIG))):
+                    from alphavantage.quotes import TickerQuotes
+                    self.tq = TickerQuotes()
+
+    def test_reads_from_file_when_filename_given(self, tmp_path):
+        import json as _json
+        data_path = tmp_path / "quotes.json"
+        data_path.write_text(_json.dumps([]))
+        result = self.tq.read_quotes(filename=str(data_path))
+        assert isinstance(result, list)
+
+    def test_reads_from_db_when_no_filename(self):
+        self.tq.db.read_quotes.return_value = MagicMock()
+        self.tq.read_quotes()
+        self.tq.db.read_quotes.assert_called_once()
+
+
+# ---------------------------------------------------------------------------
+# __del__()
+# ---------------------------------------------------------------------------
+
+class TestDel:
+    def test_del_closes_db(self):
+        with patch("alphavantage.db_utils.psycopg2"):
+            with patch("alphavantage.quotes.QuoteDatabase") as mock_qdb_cls:
+                with patch("builtins.open", mock_open(read_data=json.dumps(MINIMAL_CONFIG))):
+                    from alphavantage.quotes import TickerQuotes
+                    tq = TickerQuotes()
+                    mock_db = tq.db
+                    tq.__del__()
+                    mock_db.close.assert_called_once()
+
+    def test_del_without_db_attribute(self):
+        with patch("alphavantage.db_utils.psycopg2"):
+            with patch("alphavantage.quotes.QuoteDatabase"):
+                with patch("builtins.open", mock_open(read_data=json.dumps(MINIMAL_CONFIG))):
+                    from alphavantage.quotes import TickerQuotes
+                    tq = TickerQuotes()
+                    del tq.db
+                    tq.__del__()  # should not raise

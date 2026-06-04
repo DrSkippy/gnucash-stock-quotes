@@ -353,3 +353,107 @@ class TestGetPortfolio:
         ai = make_asset_index(equal_weight_config, sample_dfs)
         with pytest.raises(KeyError):
             ai.get_portfolio("nonexistent")
+
+
+# ---------------------------------------------------------------------------
+# _verify_data_completeness() — warning for missing symbols (line 131)
+# ---------------------------------------------------------------------------
+
+class TestVerifyDataCompleteness:
+    def test_missing_symbol_logged(self, sample_dfs, equal_weight_config, caplog):
+        import logging
+        import numpy as np
+        # All-NaN column: _prepare_dataframe selects it but dropna removes it,
+        # so _verify_data_completeness sees it as missing and logs the warning.
+        dfs_nan = sample_dfs.copy()
+        dfs_nan["MSFT"] = np.nan
+        with caplog.at_level(logging.WARNING):
+            with pytest.raises(KeyError):
+                make_asset_index(equal_weight_config, dfs_nan)
+        assert any("MSFT" in m for m in caplog.messages)
+
+    def test_no_warning_when_all_symbols_present(self, sample_dfs, equal_weight_config, caplog):
+        import logging
+        with caplog.at_level(logging.WARNING):
+            make_asset_index(equal_weight_config, sample_dfs)
+        assert not any("Missing price data" in m for m in caplog.messages)
+
+
+# ---------------------------------------------------------------------------
+# print_indexes() — lines 252-264
+# ---------------------------------------------------------------------------
+
+class TestPrintIndexes:
+    def test_prints_indexes_header(self, sample_dfs, equal_weight_config, capsys):
+        ai = make_asset_index(equal_weight_config, sample_dfs)
+        ai.print_indexes()
+        out = capsys.readouterr().out
+        assert "Indexes:" in out
+
+    def test_prints_index_name(self, sample_dfs, equal_weight_config, capsys):
+        ai = make_asset_index(equal_weight_config, sample_dfs)
+        ai.print_indexes()
+        out = capsys.readouterr().out
+        assert "test_equal" in out
+
+    def test_prints_member_symbols(self, sample_dfs, equal_weight_config, capsys):
+        ai = make_asset_index(equal_weight_config, sample_dfs)
+        ai.print_indexes()
+        out = capsys.readouterr().out
+        assert "AAPL" in out
+        assert "MSFT" in out
+
+    def test_multiple_indexes(self, sample_dfs, multi_config, capsys):
+        ai = make_asset_index(multi_config, sample_dfs)
+        ai.print_indexes()
+        out = capsys.readouterr().out
+        assert "test_equal" in out
+        assert "test_constant" in out
+        assert "test_mcap" in out
+
+
+# ---------------------------------------------------------------------------
+# get_comparison_dataframe() with shares=0 — lines 321-332
+# ---------------------------------------------------------------------------
+
+class TestGetComparisonDataframe:
+    def test_zero_shares_calculates_from_portfolio_value(self, sample_dfs, equal_weight_config):
+        ai = make_asset_index(equal_weight_config, sample_dfs)
+        result = ai.get_comparison_dataframe("test_equal", {"AAPL": 0})
+        # shares = 10000 / AAPL_price_on_created_date = 10000 / 100 = 100
+        assert "test_equal" in result.columns
+        assert "AAPL_comparison" in result.columns
+        assert pytest.approx(result["AAPL_comparison"].iloc[0], rel=1e-6) == 10000.0
+
+    def test_nonzero_shares_uses_provided_value(self, sample_dfs, equal_weight_config):
+        ai = make_asset_index(equal_weight_config, sample_dfs)
+        result = ai.get_comparison_dataframe("test_equal", {"AAPL": 50.0})
+        # AAPL_comparison = AAPL_price * 50
+        assert pytest.approx(result["AAPL_comparison"].iloc[0], rel=1e-6) == 100.0 * 50.0
+
+    def test_returns_sorted_dataframe(self, sample_dfs, equal_weight_config):
+        ai = make_asset_index(equal_weight_config, sample_dfs)
+        result = ai.get_comparison_dataframe("test_equal", {"AAPL": 1.0})
+        assert result.index.is_monotonic_increasing
+
+
+# ---------------------------------------------------------------------------
+# plot_quotes() — lines 349-352
+# ---------------------------------------------------------------------------
+
+class TestPlotQuotes:
+    @patch("market_indexes.asset_index.PdfPages")
+    @patch("market_indexes.asset_index.plt")
+    def test_saves_to_pdf(self, mock_plt, mock_pdf_cls, sample_dfs, equal_weight_config, tmp_path):
+        ai = make_asset_index(equal_weight_config, sample_dfs)
+        out = str(tmp_path / "out.pdf")
+        mock_pdf = MagicMock()
+        mock_pdf_cls.return_value.__enter__ = lambda s: mock_pdf
+        mock_pdf_cls.return_value.__exit__ = MagicMock(return_value=False)
+
+        df = ai.get_comparison_dataframe("test_equal", {"AAPL": 1.0})
+        ai.plot_quotes(df, out)
+
+        mock_pdf_cls.assert_called_once_with(out)
+        mock_pdf.savefig.assert_called_once()
+        mock_plt.close.assert_called_once()
