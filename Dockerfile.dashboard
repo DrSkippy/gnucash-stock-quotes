@@ -13,9 +13,12 @@ RUN poetry install --only main --no-root
 
 # Copy application source
 COPY alphavantage/ alphavantage/
+COPY analyzer/ analyzer/
 COPY market_indexes/ market_indexes/
 COPY dashboard/ dashboard/
 COPY indexes.json ./
+
+RUN mkdir -p /app/data
 
 # tickers.json is mounted at runtime (contains secrets)
 ENV TICKERS_CONFIG=tickers.json
