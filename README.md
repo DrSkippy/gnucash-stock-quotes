@@ -224,10 +224,20 @@ gnucash-stock-quotes/
 │   └── portfolio.py        # PortfolioAnalyzer: orchestrates AssetIndex for CLI
 ├── analyzer/
 │   └── plots.py            # CorrelationsPlotter, plot_stock_prices
+├── dashboard/
+│   ├── app.py              # Dash app factory (Gunicorn entry point)
+│   ├── db.py               # DB helpers; config built from environment variables
+│   └── pages/
+│       ├── index_browser.py  # Page 1: index history + weights
+│       ├── compare.py        # Page 2: index vs stock comparison
+│       ├── correlations.py   # Page 3: correlation explorer
+│       └── stock_browser.py  # Page 4: multi-symbol price chart
 ├── bin/
 │   ├── daily_fetch.py      # Cron entry point
 │   └── shak.py             # CLI
-├── tests/                  # pytest unit tests (116 tests, no DB or network required)
+├── tests/                  # pytest unit tests (218 tests, 99% coverage)
+├── Dockerfile.dashboard    # Dashboard container image
+├── docker-compose.yml      # Dockge-ready stack definition
 ├── indexes.json            # Index definitions (DB bootstrap / fallback)
 ├── tickers.json            # Runtime config — gitignored
 ├── pyproject.toml          # Poetry project
@@ -240,13 +250,18 @@ gnucash-stock-quotes/
 
 ```bash
 poetry run pytest tests/ -v
+poetry run pytest --cov=alphavantage --cov=analyzer --cov=market_indexes --cov=dashboard --cov-report=term-missing tests/
 ```
 
-All tests are unit tests — they mock the database and filesystem, so no PostgreSQL connection or network access is required.
+All tests are unit tests — they mock the database and filesystem, so no PostgreSQL connection or network access is required. Current coverage: **99%**.
 
 ```
-tests/test_db_utils.py    — QuoteDatabase (connection, DDL, quotes, index tables)
-tests/test_quotes.py      — TickerQuotes (API response parsing, DataFrame shaping)
-tests/test_asset_index.py — AssetIndex (portfolio math, DB integration hooks)
-tests/test_plots.py       — CorrelationsPlotter, plot_stock_prices
+tests/test_db_utils.py        — QuoteDatabase (connection, DDL, quotes, index tables, error paths)
+tests/test_quotes.py          — TickerQuotes (API response parsing, fetch, save, DataFrame shaping)
+tests/test_asset_index.py     — AssetIndex (portfolio math, DB integration hooks, print, plot)
+tests/test_plots.py           — CorrelationsPlotter, plot_stock_prices
+tests/test_gnucash.py         — Gnucash (CSV export, process_quotes)
+tests/test_portfolio.py       — PortfolioAnalyzer (init, analyze, correlations)
+tests/test_dashboard_db.py    — dashboard/db.py (env-var config, DB helpers)
+tests/test_dashboard_pages.py — Dash pages (layouts, callbacks, action buttons)
 ```
