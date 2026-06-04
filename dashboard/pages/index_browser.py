@@ -180,9 +180,19 @@ def recalculate(_n_clicks):
     if not _recalc_lock.acquire(blocking=False):
         return dbc.Alert("Already running — please wait.", color="warning", className="py-1 small")
     try:
+        import json, tempfile, os
         from market_indexes.portfolio import PortfolioAnalyzer
+        from dashboard.db import get_config
 
-        PortfolioAnalyzer()  # reads all quotes, recalculates + persists all indexes
+        # PortfolioAnalyzer → TickerQuotes reads from a file
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
+            json.dump(get_config(), f)
+            tmp = f.name
+        try:
+            PortfolioAnalyzer(tickers_file=tmp)
+        finally:
+            os.unlink(tmp)
+
         return dbc.Alert(
             f"Done at {datetime.now().strftime('%H:%M:%S')}",
             color="success",

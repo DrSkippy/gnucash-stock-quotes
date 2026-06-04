@@ -170,11 +170,21 @@ def fetch_quotes(_n_clicks):
     if not _fetch_lock.acquire(blocking=False):
         return dbc.Alert("Fetch already in progress — please wait.", color="warning", className="py-1")
     try:
+        import json, tempfile, os
         from alphavantage.quotes import TickerQuotes
+        from dashboard.db import get_config
 
-        tq = TickerQuotes()
-        results = tq.fetch_quotes()
-        tq.save_quotes(results)
+        # TickerQuotes reads from a file; write env-var config to a temp file
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
+            json.dump(get_config(), f)
+            tmp = f.name
+        try:
+            tq = TickerQuotes(filename=tmp)
+            results = tq.fetch_quotes()
+            tq.save_quotes(results)
+        finally:
+            os.unlink(tmp)
+
         return dbc.Alert(
             f"Fetched and saved {len(results)} records at {datetime.now().strftime('%H:%M:%S')}",
             color="success",

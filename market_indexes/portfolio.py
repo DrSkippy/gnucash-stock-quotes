@@ -10,7 +10,7 @@ from market_indexes.asset_index import AssetIndex
 class PortfolioAnalyzer:
     DEFAULT_PORTFOLIO_VALUE = 10000
 
-    def __init__(self, portfolio_value=DEFAULT_PORTFOLIO_VALUE):
+    def __init__(self, portfolio_value=DEFAULT_PORTFOLIO_VALUE, tickers_file=None):
         """
         Initializes a new instance of the class responsible for managing portfolio value and financial
         quote data. This class sets up the financial data structures required to handle wide-format
@@ -20,9 +20,12 @@ class PortfolioAnalyzer:
         :param portfolio_value: The initial value of the portfolio used for calculations and asset
             indexing. If not explicitly provided, a default is used.
         :type portfolio_value: float
+        :param tickers_file: Optional path to the tickers JSON config file. Defaults to
+            TickerQuotes.TICKERS_FILE when not provided.
+        :type tickers_file: str | None
         """
         self.portfolio_value = portfolio_value
-        self.ticker_quotes = TickerQuotes()
+        self.ticker_quotes = TickerQuotes(filename=tickers_file) if tickers_file else TickerQuotes()
         quote_data = self.ticker_quotes.read_quotes()
         self.quote_data = self.ticker_quotes.make_wide_dataframe(quote_data)
         self.asset_index = AssetIndex(self.quote_data, portfolio_value=self.portfolio_value,

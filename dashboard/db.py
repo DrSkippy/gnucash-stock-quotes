@@ -1,11 +1,21 @@
-"""Thin helpers that wrap QuoteDatabase for dashboard use.
+"""DB helpers for the dashboard.
 
-Each function opens a fresh connection, does its work, and closes it.
-psycopg2 connections are not thread-safe; creating one per callback is the
-simplest correct approach for a low-traffic internal tool.
+Config is built entirely from environment variables so the container can be
+deployed from Dockge (or any central location) without a mounted tickers.json.
+
+Required env vars:
+  DB_HOST, DB_PORT, DB_USER, DB_PASSWORD, DB_NAME
+
+Optional (only needed for the Fetch Latest Quotes action):
+  AV_API_KEY
+  TICKERS_STOCKS   — comma-separated, e.g. "AAPL,MSFT,SPY"
+  TICKERS_CRYPTO   — comma-separated, e.g. "GTC,ETH,XRP"
+
+Each callback opens a fresh psycopg2 connection, does its work, and closes it.
+psycopg2 connections are not thread-safe; one per callback is the simplest
+correct approach for a low-traffic internal tool.
 """
 
-import json
 import os
 import sys
 from contextlib import contextmanager
@@ -15,22 +25,55 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from alphavantage.db_utils import QuoteDatabase
 
-_CONFIG_PATH = os.environ.get("TICKERS_CONFIG", "tickers.json")
+# Alpha Vantage URL templates — public, not secrets
+_AV_URL_BASE = {
+    "DIGITAL_CURRENCY_DAILY": (
+        "https://www.alphavantage.co/query"
+        "?function=DIGITAL_CURRENCY_DAILY&symbol={}&market=USD&apikey={}"
+    ),
+    "TIME_SERIES_DAILY": (
+        "https://www.alphavantage.co/query"
+        "?function=TIME_SERIES_DAILY&symbol={}&apikey={}"
+    ),
+}
+
 _config: dict | None = None
 
 
-def _load_config() -> dict:
+def _build_config() -> dict:
+    """Assemble the tickers.json-equivalent dict from environment variables."""
+    stocks = [s.strip() for s in os.environ.get("TICKERS_STOCKS", "").split(",") if s.strip()]
+    crypto = [s.strip() for s in os.environ.get("TICKERS_CRYPTO", "").split(",") if s.strip()]
+    return {
+        "configuration": {
+            "key": os.environ.get("AV_API_KEY", ""),
+            "url_base": _AV_URL_BASE,
+            "database": {
+                "host": os.environ.get("DB_HOST", "192.168.1.90"),
+                "port": int(os.environ.get("DB_PORT", "5434")),
+                "user": os.environ["DB_USER"],
+                "password": os.environ["DB_PASSWORD"],
+                "database": os.environ.get("DB_NAME", "stock_quotes"),
+            },
+        },
+        "tickers": {
+            "DIGITAL_CURRENCY_DAILY": crypto,
+            "TIME_SERIES_DAILY": stocks,
+        },
+    }
+
+
+def get_config() -> dict:
     global _config
     if _config is None:
-        with open(_CONFIG_PATH) as f:
-            _config = json.load(f)
+        _config = _build_config()
     return _config
 
 
 @contextmanager
 def get_db():
     """Yield a QuoteDatabase instance and close it on exit."""
-    db = QuoteDatabase(_load_config())
+    db = QuoteDatabase(get_config())
     try:
         yield db
     finally:
