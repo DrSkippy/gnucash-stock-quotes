@@ -160,6 +160,58 @@ Defines custom market indexes. Three weighting strategies are supported:
 
 ---
 
+## Dashboard
+
+An interactive Plotly Dash web app for browsing indexes, comparing stocks, and exploring correlations.
+
+### Pages
+
+| Page | URL | Description |
+|---|---|---|
+| Index Browser | `/` | Index history chart, member weights table, Recalculate action |
+| Compare | `/compare` | Index vs stock rebased to 100, rolling correlation subplot |
+| Correlations | `/correlations` | Two-symbol price series and scatter/correlation plot |
+| Stocks | `/stocks` | Multi-symbol normalized price chart, Fetch Latest Quotes action |
+
+### Build and push
+
+```bash
+docker build -t localhost:5000/slak-dashboard:latest -f ./Dockerfile.dashboard .
+docker push localhost:5000/slak-dashboard:latest
+```
+
+### Deploy (Dockge)
+
+Paste the contents of `docker-compose.yml` into a new Dockge stack and set the environment variables:
+
+| Variable | Required | Description |
+|---|---|---|
+| `DB_HOST` | yes | PostgreSQL host |
+| `DB_PORT` | yes | PostgreSQL port |
+| `DB_USER` | yes | PostgreSQL user |
+| `DB_PASSWORD` | yes | PostgreSQL password |
+| `DB_NAME` | yes | Database name |
+| `AV_API_KEY` | fetch action only | Alpha Vantage API key |
+| `TICKERS_STOCKS` | fetch action only | Comma-separated stock symbols |
+| `TICKERS_CRYPTO` | fetch action only | Comma-separated crypto symbols |
+
+No volume mounts are required — all config is passed via environment variables.
+
+### PostgreSQL access for Docker containers
+
+Docker containers run in the `172.x.x.x` subnet. PostgreSQL's `pg_hba.conf` must allow connections from that range. Add this line (before the `local` catch-all) and reload:
+
+```
+# pg_hba.conf
+host    slak-dashboard    all    172.0.0.0/8    scram-sha-256
+```
+
+```bash
+sudo systemctl reload postgresql
+```
+
+---
+
 ## Project layout
 
 ```
