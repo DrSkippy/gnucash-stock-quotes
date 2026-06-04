@@ -1,0 +1,11 @@
+services:
+  dashboard:
+    build:
+      context: .
+      dockerfile: Dockerfile.dashboard
+    container_name: stock-dashboard
+    volumes:
+      - ./tickers.json:/app/tickers.json:ro
+    ports:
+      - "8050:8050"
+    restart: unless-stopped
