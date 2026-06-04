@@ -4,7 +4,7 @@ from analyzer.plots import plot_stock_prices
 
 
 class Gnucash:
-    def __init__(self, dataframes: Union[pd.DataFrame, List[pd.DataFrame]], prices_file: str = "./data/prices.csv"):
+    def __init__(self, dataframes: Union[pd.DataFrame, List[pd.DataFrame]], prices_file: str = "~/Downloads/prices.csv"):
         """
         Initialize Gnucash with dataframes and output file path.
         
